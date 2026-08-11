@@ -23,24 +23,24 @@
 # *
 # **************************************************************************
 """
-Extraccion de secuencia ATMSEQ (la secuencia realmente resuelta en los
-registros ATOM, NO SEQRES) desde un ``AtomStruct`` de pwchem, ya asumido de
-UNA sola cadena (mismo contrato que ``scipion-chem-discotope``/
-``scipion-chem-scannet``: la seleccion/aislamiento de cadena es
-responsabilidad del protocolo AGUAS ARRIBA -- p.ej. ``ProtChemPrepareReceptor``
--- no de este plugin).
+Extraction of the ATMSEQ sequence (the sequence actually resolved in the
+ATOM records, NOT SEQRES) from a pwchem ``AtomStruct``, already assumed to
+be a SINGLE chain (same contract as ``scipion-chem-discotope``/
+``scipion-chem-scannet``: chain selection/isolation is the responsibility
+of the UPSTREAM protocol -- e.g. ``ProtChemPrepareReceptor`` -- not this
+plugin).
 
-Logica vendorizada (misma politica de "cada plugin mantiene su propia copia
-minima" que StackGlyEmbed/NetCleave) a partir de
-``PTM-Prediction/src/utils/structure_parser.py``, ya validada end-to-end en
-el pipeline standalone: resolucion de residuos via CCD
-(``gemmi.find_tabulated_residue``, resuelve automaticamente residuos
-modificados -- MSE->M, SEP->S, TPO->T, PTR->Y, CSO->C, etc.) en vez de
-``ResidueSpan.make_one_letter_sequence()`` (puede desalinear el conteo de
-caracteres frente al numero real de residuos ante un nombre no reconocido).
-Necesaria porque el runner de DeepPTMPred exige ``--sequence`` explicita,
-alineada 1:1 con la numeracion de pose que PyRosetta construye leyendo el
-mismo PDB (residuo N del polimero == posicion N de esta secuencia).
+Logic vendorized (same "each plugin keeps its own minimal copy" policy as
+StackGlyEmbed/NetCleave) from
+``PTM-Prediction/src/utils/structure_parser.py``, already validated
+end-to-end in the standalone pipeline: residue resolution via the CCD
+(``gemmi.find_tabulated_residue``, automatically resolves modified
+residues -- MSE->M, SEP->S, TPO->T, PTR->Y, CSO->C, etc.) instead of
+``ResidueSpan.make_one_letter_sequence()`` (can misalign the character
+count against the real number of residues on an unrecognized name).
+Needed because the DeepPTMPred runner requires an explicit ``--sequence``,
+aligned 1:1 with the pose numbering PyRosetta builds when reading the same
+PDB (polymer residue N == position N of this sequence).
 """
 
 import gemmi
@@ -51,29 +51,30 @@ class StructureSequenceError(Exception):
 
 
 def _resolve_residue_letter(resname):
-    """Letra canonica de 1 caracter para ``resname`` (codigo CCD de 3 letras), o 'X'."""
+    """Canonical 1-character letter for ``resname`` (3-letter CCD code), or 'X'."""
     info = gemmi.find_tabulated_residue(resname)
     code = info.one_letter_code.strip().upper() if info is not None else ""
     return code if len(code) == 1 and code.isalpha() else "X"
 
 
 def extract_chain_sequence(pdbPath):
-    """Secuencia ATMSEQ (1 caracter por residuo) de la PRIMERA cadena polimero de ``pdbPath``.
+    """ATMSEQ sequence (1 character per residue) of the FIRST polymer chain in ``pdbPath``.
 
-    Asume una unica cadena de interes (ya aislada aguas arriba) -- si el
-    archivo trae varias, usa la primera con un polimero de aminoacidos no
-    vacio (mismo criterio de deteccion que ``structure_parser.py::_select_chain``,
-    via ``Chain.get_polymer()``), ignorando aguas/heteroatomos/ligandos.
+    Assumes a single chain of interest (already isolated upstream) -- if
+    the file carries several, uses the first one with a non-empty amino
+    acid polymer (same detection criterion as
+    ``structure_parser.py::_select_chain``, via ``Chain.get_polymer()``),
+    ignoring waters/heteroatoms/ligands.
 
     Raises:
-        StructureSequenceError: si el modelo 1 no tiene ninguna cadena con
-            un polimero de aminoacidos valido.
+        StructureSequenceError: if model 1 has no chain with a valid amino
+            acid polymer.
     """
     structure = gemmi.read_structure(str(pdbPath))
     structure.setup_entities()
 
     if len(structure) == 0:
-        raise StructureSequenceError(f"'{pdbPath}' no contiene ningun modelo (MODEL) parseable.")
+        raise StructureSequenceError(f"'{pdbPath}' does not contain any parseable model (MODEL).")
 
     model = structure[0]
     chain = None
@@ -83,8 +84,8 @@ def extract_chain_sequence(pdbPath):
             break
     if chain is None:
         raise StructureSequenceError(
-            f"El modelo 1 de '{pdbPath}' no tiene ninguna cadena con al menos un residuo de "
-            "aminoacido valido en su polimero."
+            f"Model 1 of '{pdbPath}' has no chain with at least one valid amino acid "
+            "residue in its polymer."
         )
 
     residues = list(chain.get_polymer())

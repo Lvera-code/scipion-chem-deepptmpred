@@ -1,45 +1,45 @@
 #!/usr/bin/env python
-"""Runner standalone para DeepPTMPred (Fase 2, motor 2/2 del consenso Camino PDB).
+"""Standalone runner for DeepPTMPred (Phase 2, engine 2/2 of the PDB-path consensus).
 
-VENDORIZADO byte-a-byte desde
-``PTM-Prediction/src/engines/_deepptmpred_runner.py`` -- este archivo NUNCA
-se edita para "portar" su logica: los 3 parches cientificos que contiene
-(deserializacion Keras Lambda/K, phi/psi forzados a 0.0 para igualar la
-distribucion de entrenamiento, re-indexado de plDDT via CA real) fueron
-verificados empiricamente contra el AUROC publicado del paper (ver
-docstrings de ``_load_predict_module``/``_patched_calculate_features`` mas
-abajo) -- reimplementarlos de memoria arriesgaria perder esa verificacion.
-Cualquier cambio a la logica de prediccion debe hacerse en el proyecto
-hermano ``PTM-Prediction`` primero y sincronizarse aqui despues, mismo
-criterio que ``predict_local.py`` en ``scipion-chem-stackglyembed``.
+VENDORIZED byte-for-byte from
+``PTM-Prediction/src/engines/_deepptmpred_runner.py`` -- this file is NEVER
+edited to "port" its logic: the 3 scientific patches it contains (Keras
+Lambda/K deserialization, phi/psi forced to 0.0 to match the training
+distribution, plDDT re-indexing via the real CA atom) were empirically
+verified against the paper's published AUROC (see the docstrings of
+``_load_predict_module``/``_patched_calculate_features`` below) --
+reimplementing them from memory would risk losing that verification. Any
+change to the prediction logic must be made in the sibling
+``PTM-Prediction`` project first and synced here afterward, same criterion
+as ``predict_local.py`` in ``scipion-chem-stackglyembed``.
 
-Este script NUNCA importa el paquete ``src`` de PTM-Prediction -- requiere
-torch/tensorflow/tensorflow-addons/pyrosetta/fair-esm, dependencias SOLO
-presentes en el entorno conda dedicado de este plugin
-(``DEEPPTMPRED_ACTIVATION_CMD``). Se invoca EXCLUSIVAMENTE via subprocess
-desde ``ProtDeepPTMPredPrediction`` (``protocols/protocol_deepptmpred.py``).
+This script NEVER imports PTM-Prediction's ``src`` package -- it requires
+torch/tensorflow/tensorflow-addons/pyrosetta/fair-esm, dependencies ONLY
+present in this plugin's dedicated conda environment
+(``DEEPPTMPRED_ACTIVATION_CMD``). It is invoked EXCLUSIVELY via subprocess
+from ``ProtDeepPTMPredPrediction`` (``protocols/protocol_deepptmpred.py``).
 
-Por que existe este runner en vez de invocar los scripts del repo
-directamente (a diferencia de DeepMVP, que si tiene un CLI real): el
-codigo fuente de github.com/kuikui-wang/DeepPTMPred muestra que ni
-``predict.py`` ni ``e2_single_data.py`` tienen CLI -- ambos hardcodean
-``ptm_type``/``pdb_path``/``protein_id``/la ruta del checkpoint ESM dentro
-de su bloque ``if __name__ == "__main__":``. Este runner importa las dos
-clases SI parametrizadas correctamente de ``predict.py``
-(``PredictConfig``, ``PTMPredictor``, ambas reciben sus argumentos por
-constructor) y REIMPLEMENTA la extraccion de features ESM-2 en vez de
-llamar a ``e2_single_data.py::extract_full_sequence_esm``: esa funcion
-redefine ``custom_checkpoint_path`` como variable LOCAL con una ruta
-absoluta hardcodeada de AutoDL (``/root/autodl-tmp/...``), ignorando
-cualquier valor pasado como parametro o de modulo.
+Why this runner exists instead of invoking the repo's scripts directly
+(unlike DeepMVP, which does have a real CLI): the source code at
+github.com/kuikui-wang/DeepPTMPred shows that neither ``predict.py`` nor
+``e2_single_data.py`` has a CLI -- both hardcode ``ptm_type``/``pdb_path``/
+``protein_id``/the ESM checkpoint path inside their
+``if __name__ == "__main__":`` block. This runner imports the two classes
+that ARE correctly parametrized from ``predict.py`` (``PredictConfig``,
+``PTMPredictor``, both receive their arguments via constructor) and
+REIMPLEMENTS ESM-2 feature extraction instead of calling
+``e2_single_data.py::extract_full_sequence_esm``: that function redefines
+``custom_checkpoint_path`` as a LOCAL variable with a hardcoded absolute
+AutoDL path (``/root/autodl-tmp/...``), ignoring any value passed as a
+parameter or from the module.
 
-Tambien evita ``predict.py::extract_protein_id_from_pdb_path`` /
-``extract_sequence_from_pdb`` (que exigen un nombre de archivo estilo
-AlphaFold, p. ej. ``AF-P12345-F1-model_v4.pdb``, y hacen su propia
-extraccion ATMSEQ redundante con ``src.utils.structure_parser``): este
-runner recibe el accession y la secuencia YA saneados por Fase 1.5 como
-argumentos explicitos, garantizando que DeepMVP y DeepPTMPred reporten
-exactamente la misma numeracion de posicion para el mismo accession.
+It also avoids ``predict.py::extract_protein_id_from_pdb_path`` /
+``extract_sequence_from_pdb`` (which require an AlphaFold-style filename,
+e.g. ``AF-P12345-F1-model_v4.pdb``, and perform their own ATMSEQ
+extraction redundant with ``src.utils.structure_parser``): this runner
+receives the accession and sequence already sanitized by Phase 1.5 as
+explicit arguments, guaranteeing that DeepMVP and DeepPTMPred report
+exactly the same position numbering for the same accession.
 """
 
 import argparse
@@ -51,65 +51,65 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Columnas de salida: 'probability' es el score crudo de DeepPTMPred (se
-# conserva siempre); la columna 'prediction' propia del repo (cutoff 0.5
-# hardcodeado, no calibrado contra ningun validation set) se descarta
-# deliberadamente -- el filtro real lo aplica el nucleo de Fase 3, no este
-# runner.
+# Output columns: 'probability' is DeepPTMPred's raw score (always kept);
+# the repo's own 'prediction' column (hardcoded 0.5 cutoff, not calibrated
+# against any validation set) is deliberately discarded -- the real filter
+# is applied by the Phase 3 core, not this runner.
 OUTPUT_COLUMNS = ["protein_id", "position", "residue", "probability", "ptm_type"]
 
 
 def _esm_cache_path(custom_esm_dir: Path, protein_id: str, sequence: str) -> Path:
-    """Nombre de archivo de cache de features ESM, con hash de la secuencia real.
+    """ESM feature cache filename, hashed against the real sequence.
 
-    Una clave de cache basada solo en ``protein_id``
-    (``{protein_id}_full_esm.npz``) reutilizaria en silencio el embedding
-    ESM viejo al re-correr el pipeline con una secuencia DISTINTA bajo el
-    mismo accession (p. ej. un PDB actualizado con el mismo nombre de
-    archivo), prediciendo sobre la secuencia equivocada sin ningun error ni
-    warning. El hash (sha256, 12 hex primeros caracteres, suficiente para
-    evitar colisiones accidentales sin alargar demasiado el nombre) hace que
-    una secuencia distinta sea SIEMPRE una cache distinta -- no hay que
-    leer/comparar el .npz existente para decidir si reusarlo.
+    A cache key based only on ``protein_id``
+    (``{protein_id}_full_esm.npz``) would silently reuse the old ESM
+    embedding when re-running the pipeline with a DIFFERENT sequence under
+    the same accession (e.g. an updated PDB with the same filename),
+    predicting on the wrong sequence with no error or warning. The hash
+    (sha256, first 12 hex characters, enough to avoid accidental
+    collisions without making the filename too long) makes a different
+    sequence ALWAYS a different cache -- there is no need to read/compare
+    the existing .npz to decide whether to reuse it.
     """
     sequence_hash = hashlib.sha256(sequence.encode("utf-8")).hexdigest()[:12]
     return custom_esm_dir / f"{protein_id}_{sequence_hash}_full_esm.npz"
 
 
 def _extract_esm_features(sequence: str, checkpoint_path: Path, esm_dim: int = 1280) -> np.ndarray:
-    """Reimplementacion propia de e2_single_data.py::extract_full_sequence_esm.
+    """Own reimplementation of e2_single_data.py::extract_full_sequence_esm.
 
-    Misma logica (chunking a 1022 tokens, capa de representacion 33,
-    descarte de CLS/SEP), pero ``checkpoint_path`` SI se respeta -- el
-    original la ignora (ver docstring del modulo).
+    Same logic (chunking to 1022 tokens, representation layer 33, CLS/SEP
+    discarded), but ``checkpoint_path`` IS honored -- the original ignores
+    it (see the module docstring).
 
-    100% local: leyendo directamente ``esm/pretrained.py`` de
-    github.com/facebookresearch/esm se confirma que
-    ``pretrained.load_model_and_alphabet(model_name)`` hace
+    100% local: reading ``esm/pretrained.py`` directly from
+    github.com/facebookresearch/esm confirms that
+    ``pretrained.load_model_and_alphabet(model_name)`` does
     ``if model_name.endswith(".pt"): return load_model_and_alphabet_local(...)``
-    -- como ``checkpoint_path`` siempre es una ruta ``.pt`` local (nunca un
-    nombre de modelo tipo ``"esm2_t33_650M_UR50D"``), SIEMPRE entra por la
-    rama local, que solo usa ``torch.load()`` sobre archivos en disco. La
-    rama que si descarga de red (``load_model_and_alphabet_hub``, contra
-    ``dl.fbaipublicfiles.com``) nunca se alcanza.
+    -- since ``checkpoint_path`` is always a local ``.pt`` path (never a
+    model name like ``"esm2_t33_650M_UR50D"``), it ALWAYS takes the local
+    branch, which only uses ``torch.load()`` on files on disk. The branch
+    that does download over the network (``load_model_and_alphabet_hub``,
+    against ``dl.fbaipublicfiles.com``) is never reached.
 
-    Detalle real (no un problema de red, pero si de archivos): la rama
-    local tambien intenta cargar un archivo COMPANERO
-    ``<checkpoint>-contact-regression.pt`` en el mismo directorio (la
-    heuristica interna de fair-esm, ``_has_regression_weights``, no excluye
-    los modelos ``esm2_*``). Si falta, revienta con ``FileNotFoundError``
-    LOCAL al intentar el ``torch.load()`` de ese archivo -- verificar que
-    este companero tambien se descargue junto al checkpoint principal (ver
-    ``Settings.DEEPPTMPRED_ESM_CHECKPOINT``).
+    Real detail (not a network issue, but a file one): the local branch
+    also tries to load a COMPANION file
+    ``<checkpoint>-contact-regression.pt`` in the same directory (fair-esm's
+    internal heuristic, ``_has_regression_weights``, does not exclude
+    ``esm2_*`` models). If missing, it fails with a LOCAL
+    ``FileNotFoundError`` when attempting ``torch.load()`` on that file --
+    make sure this companion file is also downloaded alongside the main
+    checkpoint (see ``Settings.DEEPPTMPRED_ESM_CHECKPOINT``).
     """
     import torch
     from esm import pretrained
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # safe_globals llego en torch 2.4 (weights_only=True paso a default en
-    # 2.6) -- el environment.yml de DeepPTMPred fija pytorch=2.0, que ni
-    # tiene el atributo ni lo necesita (su torch.load por defecto ya es
-    # weights_only=False, permite el unpickle de argparse.Namespace sin mas).
+    # safe_globals arrived in torch 2.4 (weights_only=True became the
+    # default in 2.6) -- DeepPTMPred's environment.yml pins pytorch=2.0,
+    # which neither has the attribute nor needs it (its default
+    # torch.load is already weights_only=False, allowing the unpickle of
+    # argparse.Namespace without further action).
     safe_ctx = (
         torch.serialization.safe_globals([argparse.Namespace])
         if hasattr(torch.serialization, "safe_globals")
@@ -121,7 +121,7 @@ def _extract_esm_features(sequence: str, checkpoint_path: Path, esm_dim: int = 1
     model.eval()
     batch_converter = alphabet.get_batch_converter()
 
-    max_len = 1022  # dejar espacio para tokens CLS/SEP (limite real de ESM-2)
+    max_len = 1022  # leave room for CLS/SEP tokens (ESM-2's real limit)
     chunks = [sequence[i : i + max_len] for i in range(0, len(sequence), max_len)]
     full_features = np.zeros((len(sequence), esm_dim))
 
@@ -140,27 +140,27 @@ def _extract_esm_features(sequence: str, checkpoint_path: Path, esm_dim: int = 1
 
 
 def _load_predict_module(train_ptm_dir: Path):
-    """Inserta ``train_ptm_dir`` en sys.path e importa el modulo ``predict`` del repo.
+    """Inserts ``train_ptm_dir`` into sys.path and imports the repo's ``predict`` module.
 
-    Import diferido (dentro de la funcion, no a nivel de modulo): las
-    dependencias pesadas de ``predict.py`` (tensorflow, pyrosetta,
-    tensorflow_addons) solo deben cargarse cuando el runner realmente se
-    ejecuta, nunca al parsear este archivo.
+    Deferred import (inside the function, not at module level): the heavy
+    dependencies of ``predict.py`` (tensorflow, pyrosetta,
+    tensorflow_addons) must only load when the runner actually executes,
+    never when this file is parsed.
 
-    Tambien parchea aqui ``predict.load_model``: el modelo guardado tiene
-    una capa ``Lambda`` (``model.py::182``,
-    ``Lambda(lambda xin: K.sum(xin, axis=1))``) cuya funcion serializada
-    referencia el simbolo ``K`` (alias de ``tensorflow.keras.backend``) en
-    tiempo de reconstruccion -- Keras SOLO resuelve esos simbolos via el
-    diccionario ``custom_objects`` pasado a ``load_model``, nunca via los
-    globals del modulo que la importa (aunque ``predict.py`` si tiene ``K``
-    en su propio namespace). El ``custom_objects`` real de
-    ``PTMPredictor.__init__`` no incluye ``'K'``, asi que cargar cualquier
-    modelo revienta con ``NameError: name 'K' is not defined``. Verificado
-    ejecutando el modelo de fosforilacion sin parche (revienta) y con el
-    parche (carga correctamente). No se edita ``predict.py`` (vendored,
-    mismo criterio que el resto del runner): se envuelve la funcion en el
-    modulo ya importado.
+    Also patches ``predict.load_model`` here: the saved model has a
+    ``Lambda`` layer (``model.py::182``,
+    ``Lambda(lambda xin: K.sum(xin, axis=1))``) whose serialized function
+    references the symbol ``K`` (alias for ``tensorflow.keras.backend``)
+    at reconstruction time -- Keras ONLY resolves those symbols via the
+    ``custom_objects`` dict passed to ``load_model``, never via the
+    globals of the module importing it (even though ``predict.py`` does
+    have ``K`` in its own namespace). The real ``custom_objects`` in
+    ``PTMPredictor.__init__`` does not include ``'K'``, so loading any
+    model fails with ``NameError: name 'K' is not defined``. Verified by
+    running the phosphorylation model without the patch (fails) and with
+    the patch (loads correctly). ``predict.py`` is not edited (vendored,
+    same criterion as the rest of the runner): the function is wrapped on
+    the already-imported module.
     """
     sys.path.insert(0, str(train_ptm_dir))
     import predict
@@ -175,41 +175,42 @@ def _load_predict_module(train_ptm_dir: Path):
 
     predict.load_model = _patched_load_model
 
-    # Parche 2: distribution mismatch train/inferencia --
-    # ``data_loader.py::L139-141`` (pipeline de entrenamiento
-    # Y de evaluacion del paper) calcula ``phi_center``/``psi_center`` con
-    # ``half_window = (max(window_sizes)-1)//2 = 25``, pero el array
-    # phi/psi del CSV fuente solo tiene 11 elementos -- la condicion
-    # ``len(x) > half_window`` es SIEMPRE falsa, asi que el modelo shippeado
-    # nunca vio nada distinto de 0.0 en esos dos angulos, ni en entrenamiento
-    # ni en el test set que produce los AUC publicados en el paper. Pero
-    # ``PyRosettaCalculator.calculate_features`` (inferencia real, la que usa
-    # este runner) SI calcula phi/psi reales via PyRosetta -- eso saca al
-    # modelo de su distribucion de entrenamiento. Verificado empiricamente
-    # (script de calibracion, n=75): forzar phi=psi=0.0 en inferencia sube
-    # el AUROC real de hydroxylation 0.342->0.934 (paper: 0.965) y el de
-    # lys_methylation 0.462->0.883 (paper: 0.899) -- recupera el rendimiento
-    # publicado. Igualar la inferencia a lo que el modelo realmente aprendio,
-    # no una mejora de features: el modelo no sabe usar phi/psi reales.
+    # Patch 2: train/inference distribution mismatch --
+    # ``data_loader.py::L139-141`` (the paper's training AND evaluation
+    # pipeline) computes ``phi_center``/``psi_center`` with
+    # ``half_window = (max(window_sizes)-1)//2 = 25``, but the source
+    # CSV's phi/psi array only has 11 elements -- the condition
+    # ``len(x) > half_window`` is ALWAYS false, so the shipped model never
+    # saw anything other than 0.0 in those two angles, neither in training
+    # nor in the test set that produces the AUCs published in the paper.
+    # But ``PyRosettaCalculator.calculate_features`` (real inference, the
+    # one this runner uses) DOES compute real phi/psi via PyRosetta --
+    # that takes the model out of its training distribution. Empirically
+    # verified (calibration script, n=75): forcing phi=psi=0.0 at
+    # inference raises the real hydroxylation AUROC from 0.342 to 0.934
+    # (paper: 0.965) and lys_methylation's from 0.462 to 0.883 (paper:
+    # 0.899) -- recovers the published performance. This matches inference
+    # to what the model actually learned, it is not a features
+    # improvement: the model does not know how to use real phi/psi.
     _original_calculate_features = predict.PyRosettaCalculator.calculate_features
 
-    # Parche 3: bug de indexado (ver STATUS.md,
-    # "investigacion de n_linked_glycosylation y los 4 tipos mediocres").
-    # ``PyRosettaCalculator.__init__`` construye
-    # ``self.plDDT_values`` iterando POR ATOMO
+    # Patch 3: indexing bug (see STATUS.md,
+    # "n_linked_glycosylation and the 4 mediocre types investigation").
+    # ``PyRosettaCalculator.__init__`` builds
+    # ``self.plDDT_values`` by iterating PER ATOM
     # (``[atom.get_bfactor() for atom in structure.get_atoms()]``, ~L260),
-    # pero ``calculate_features`` lo indexa POR NUMERO DE RESIDUO
-    # (``self.plDDT_values[residue_number - 1]``, ~L300) -- con ~7
-    # atomos/residuo en un PDB de AlphaFold, el "local_plDDT" del residuo N
-    # termina siendo en realidad el B-factor de un atomo de un residuo
-    # totalmente distinto (~N/7). Verificado empiricamente: correlacion
-    # contra el B-factor CA real = 0.031; con este fix = 0.927. AUROC real
-    # medido tras el fix: citrullination 0.657->0.778 (iguala el paper
-    # exacto), s_nitrosylation 0.683->0.770. No se toca ``predict.py``
-    # (vendored): se recalcula ``local_plDDT`` directamente desde
-    # ``self.pose`` (mismo PDB ya cargado por PyRosetta), tomando el
-    # B-factor real del atomo CA del residuo pedido -- no depende en
-    # absoluto del array ``self.plDDT_values`` mal indexado.
+    # but ``calculate_features`` indexes it PER RESIDUE NUMBER
+    # (``self.plDDT_values[residue_number - 1]``, ~L300) -- with ~7
+    # atoms/residue in an AlphaFold PDB, residue N's "local_plDDT" ends up
+    # actually being the B-factor of an atom from a completely different
+    # residue (~N/7). Empirically verified: correlation against the real
+    # CA B-factor = 0.031; with this fix = 0.927. Real AUROC measured
+    # after the fix: citrullination 0.657->0.778 (matches the paper
+    # exactly), s_nitrosylation 0.683->0.770. ``predict.py`` is not
+    # touched (vendored): ``local_plDDT`` is recomputed directly from
+    # ``self.pose`` (the same PDB already loaded by PyRosetta), taking the
+    # real B-factor of the requested residue's CA atom -- it does not
+    # depend at all on the mis-indexed ``self.plDDT_values`` array.
     def _patched_calculate_features(self, residue_number):
         feat = _original_calculate_features(self, residue_number)
         feat = feat.copy()
@@ -219,7 +220,7 @@ def _load_predict_module(train_ptm_dir: Path):
             ca_atom_index = self.pose.residue(residue_number).atom_index("CA")
             feat[6] = self.pose.pdb_info().bfactor(residue_number, ca_atom_index)  # local_plDDT
         except Exception:
-            pass  # deja el local_plDDT (mal indexado) que ya trae el array original
+            pass  # leave the (mis-indexed) local_plDDT already carried by the original array
         return feat
 
     predict.PyRosettaCalculator.calculate_features = _patched_calculate_features
@@ -229,16 +230,16 @@ def _load_predict_module(train_ptm_dir: Path):
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Runner standalone de DeepPTMPred (un tipo de PTM por invocacion)."
+        description="Standalone DeepPTMPred runner (one PTM type per invocation)."
     )
-    parser.add_argument("--train-ptm-dir", required=True, help="Ruta a DeepPTMPred/pred/train_PTM")
+    parser.add_argument("--train-ptm-dir", required=True, help="Path to DeepPTMPred/pred/train_PTM")
     parser.add_argument("--protein-id", required=True)
-    parser.add_argument("--sequence", required=True, help="Secuencia ATMSEQ ya saneada por Fase 1.5")
-    parser.add_argument("--pdb-path", required=True, help="PDB de una sola cadena (Fase 1.5)")
-    # Lista duplicada a proposito de Settings.DEEPPTMPRED_PTM_TYPES: este
-    # script corre en el venv dedicado de DeepPTMPred, nunca importa 'src'
-    # (ver docstring del modulo). Si el repo agrega/quita un tipo de PTM,
-    # actualizar ambas listas (aqui y en src/config/settings.py).
+    parser.add_argument("--sequence", required=True, help="ATMSEQ sequence already sanitized by Phase 1.5")
+    parser.add_argument("--pdb-path", required=True, help="Single-chain PDB (Phase 1.5)")
+    # List deliberately duplicated from Settings.DEEPPTMPRED_PTM_TYPES: this
+    # script runs in DeepPTMPred's dedicated venv, it never imports 'src'
+    # (see the module docstring). If the repo adds/removes a PTM type,
+    # update both lists (here and in src/config/settings.py).
     parser.add_argument("--ptm-type", required=True, choices=[
         "phosphorylation", "acetylation", "ubiquitination", "hydroxylation",
         "gamma_carboxyglutamic_acid", "lys_methylation", "malonylation",
@@ -246,8 +247,8 @@ def main() -> int:
         "sumoylation", "s_nitrosylation", "glutarylation", "citrullination",
         "o_linked_glycosylation", "n_linked_glycosylation",
     ])
-    parser.add_argument("--esm-checkpoint", required=True, help="Ruta a esm2_t33_650M_UR50D.pt")
-    parser.add_argument("--custom-esm-dir", required=True, help="Cache de features ESM (.npz por accession)")
+    parser.add_argument("--esm-checkpoint", required=True, help="Path to esm2_t33_650M_UR50D.pt")
+    parser.add_argument("--custom-esm-dir", required=True, help="ESM feature cache (.npz per accession)")
     parser.add_argument("--out-csv", required=True)
     args = parser.parse_args()
 
@@ -267,10 +268,10 @@ def main() -> int:
     # project_root = DeepPTMPred/ (train_ptm_dir = DeepPTMPred/pred/train_PTM)
     project_root = train_ptm_dir.parent.parent
     config = predict.PredictConfig(ptm_type=args.ptm_type, project_root=str(project_root))
-    # Se sobreescribe DESPUES de construir el config (que fija su propio
-    # default relativo al project_root) y ANTES de construir el predictor
-    # (que pasa 'config' por referencia a su data loader interno): el
-    # atributo se lee en el momento de la llamada, no se copia antes.
+    # Overwritten AFTER building the config (which sets its own default
+    # relative to project_root) and BEFORE building the predictor (which
+    # passes 'config' by reference to its internal data loader): the
+    # attribute is read at call time, not copied beforehand.
     config.custom_esm_dir = str(custom_esm_dir)
 
     predictor = predict.PTMPredictor(config)

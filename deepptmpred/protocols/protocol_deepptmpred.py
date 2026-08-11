@@ -44,8 +44,6 @@ OUTPUT_COLUMNS = ['protein_id', 'position', 'residue', 'probability', 'ptm_type'
 
 class ProtDeepPTMPredPrediction(EMProtocol):
     """
-    AI Generated:
-
     Predicts PTM candidate sites (17 types: phosphorylation, acetylation,
     ubiquitination, hydroxylation, gamma-carboxyglutamic acid, lysine/
     arginine methylation, malonylation, crotonylation, succinylation,
@@ -110,10 +108,10 @@ class ProtDeepPTMPredPrediction(EMProtocol):
         sequence = extract_chain_sequence(pdbPath)
         proteinId = os.path.splitext(os.path.basename(pdbPath))[0]
 
-        # Rutas ABSOLUTAS obligatorias: el subproceso corre con
-        # cwd=train_ptm_dir, una ruta relativa de self._getExtraPath() se
-        # resolveria contra ese cwd equivocado, no la raiz del proyecto
-        # Scipion (mismo patron que scipion-chem-deepmvp).
+        # ABSOLUTE paths are mandatory: the subprocess runs with
+        # cwd=train_ptm_dir, so a relative path from self._getExtraPath()
+        # would resolve against that wrong cwd, not the Scipion project
+        # root (same pattern as scipion-chem-deepmvp).
         esmCacheDir = os.path.abspath(self._getExtraPath('esm_cache'))
         os.makedirs(esmCacheDir, exist_ok=True)
 

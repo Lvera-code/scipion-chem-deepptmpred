@@ -36,33 +36,33 @@ DEEPPTMPRED_DIC = {
 READ_URL = 'https://github.com/Lvera-code/scipion-chem-deepptmpred'
 UPSTREAM_URL = 'https://github.com/kuikui-wang/DeepPTMPred'
 
-# Confirmado leyendo el runner vendorizado (scripts/deepptmpred_runner.py::
-# _extract_esm_features, linea ~101): 'torch.device("cuda" if
-# torch.cuda.is_available() else "cpu")' -- se decide EN CODIGO, sin ningun
-# flag de CLI que exponer (a diferencia de TMbed/DiscoTope-3.0, los unicos 2
-# plugins del proyecto 1 con un flag de GPU real). No se agrega parametro
-# useGPU al protocolo (mismo criterio aplicado a DeepMVP).
+# Confirmed by reading the vendorized runner (scripts/deepptmpred_runner.py::
+# _extract_esm_features, line ~101): 'torch.device("cuda" if
+# torch.cuda.is_available() else "cpu")' -- decided IN CODE, with no CLI
+# flag to expose (unlike TMbed/DiscoTope-3.0, the only 2 plugins in project 1
+# with a real GPU flag). No useGPU parameter is added to the protocol (same
+# criterion applied to DeepMVP).
 GPU_REQUIRED = True
 
-# Licencia de DeepPTMPred (upstream): el repo no declara LICENSE propia; el
-# codigo fuente esta sujeto a los mismos terminos que el paper, CC BY-NC 4.0
-# (Oxford University Press) -- uso no comercial unicamente. Ver
-# PTM-Prediction/STATUS.md para el detalle de la verificacion.
-LICENSE_NOTE = 'CC BY-NC 4.0 -- uso no comercial unicamente.'
+# DeepPTMPred license (upstream): the repo does not declare its own LICENSE;
+# the source code is subject to the same terms as the paper, CC BY-NC 4.0
+# (Oxford University Press) -- non-commercial use only. See
+# PTM-Prediction/STATUS.md for the verification details.
+LICENSE_NOTE = 'CC BY-NC 4.0 -- non-commercial use only.'
 
-# Pesos SI vienen incluidos en el repo clonado (.h5 por tipo de PTM, ~19MB
-# c/u, confirmado en PTM-Prediction/src/engines/deepptmpred_engine.py
-# docstring) -- a diferencia de DeepMVP, no hay descarga de modelo aparte.
+# Weights ARE included in the cloned repo (.h5 per PTM type, ~19MB each,
+# confirmed in the PTM-Prediction/src/engines/deepptmpred_engine.py
+# docstring) -- unlike DeepMVP, there is no separate model download.
 #
-# El checkpoint ESM-2 (esm2_t33_650M_UR50D.pt, 2.6GB) SI es manual: aunque
-# 'fair-esm' normalmente permite descargarlo via su propio codigo
-# (dl.fbaipublicfiles.com), PTM-Prediction/STATUS.md (linea ~185) registra
-# que se instalo manualmente en esta misma organizacion -- se mantiene el
-# mismo patron aqui en vez de automatizar una descarga nunca antes
-# verificada en un 'scipion3 installb' real. Debe venir acompanado de
-# 'esm2_t33_650M_UR50D-contact-regression.pt' (companero obligatorio, ver
-# docstring de 'scripts/deepptmpred_runner.py::_extract_esm_features') en el
-# MISMO directorio.
+# The ESM-2 checkpoint (esm2_t33_650M_UR50D.pt, 2.6GB) IS manual: although
+# 'fair-esm' normally allows downloading it via its own code
+# (dl.fbaipublicfiles.com), PTM-Prediction/STATUS.md (line ~185) records
+# that it was installed manually in this same organization -- the same
+# pattern is kept here rather than automating a download never before
+# verified in a real 'scipion3 installb' run. It must be accompanied by
+# 'esm2_t33_650M_UR50D-contact-regression.pt' (required companion file, see
+# the docstring of 'scripts/deepptmpred_runner.py::_extract_esm_features')
+# in the SAME directory.
 ESM_CHECKPOINT_FILENAME = 'esm2_t33_650M_UR50D.pt'
 ESM_CONTACT_REGRESSION_FILENAME = 'esm2_t33_650M_UR50D-contact-regression.pt'
 ESM_DOWNLOAD_URL = (
@@ -73,20 +73,20 @@ ESM_CONTACT_REGRESSION_URL = (
     'esm2_t33_650M_UR50D-contact-regression.pt'
 )
 
-# PyRosetta: licencia academica gratuita (RosettaCommons), wheel NO
-# redistribuible ni descargable de forma fiable en este entorno (STATUS.md
-# linea ~194-205: los mirrors por defecto del instalador fallaron real y
-# reproduciblemente -- 404/TLS -- en esta maquina). Instalacion 100% manual,
-# mismo patron que NETMHCPAN_HOME en el proyecto 1: el usuario descarga el
-# wheel el mismo (https://www.pyrosetta.org/downloads, requiere cuenta
-# academica gratuita) e instala con 'pip install <wheel>' DENTRO del
-# entorno conda de este plugin.
+# PyRosetta: free academic license (RosettaCommons), wheel NOT
+# redistributable and not reliably downloadable in this environment
+# (STATUS.md line ~194-205: the installer's default mirrors failed, really
+# and reproducibly -- 404/TLS -- on this machine). 100% manual installation,
+# same pattern as NETMHCPAN_HOME in project 1: the user downloads the
+# wheel themselves (https://www.pyrosetta.org/downloads, requires a free
+# academic account) and installs it with 'pip install <wheel>' INSIDE this
+# plugin's conda environment.
 PYROSETTA_DOWNLOAD_URL = 'https://www.pyrosetta.org/downloads'
 
-# 17 tipos de PTM que DeepPTMPred predice (un modelo .h5 por tipo, una
-# invocacion del runner por tipo) -- verificados contra
-# PTM-Prediction/src/config/settings.py::DEEPPTMPRED_PTM_TYPES, que a su vez
-# cita la lista real de 'choices' del runner (linea ~237-243).
+# 17 PTM types predicted by DeepPTMPred (one .h5 model per type, one runner
+# invocation per type) -- verified against
+# PTM-Prediction/src/config/settings.py::DEEPPTMPRED_PTM_TYPES, which in
+# turn cites the runner's real 'choices' list (line ~237-243).
 PTM_TYPES = (
     'phosphorylation', 'acetylation', 'ubiquitination', 'hydroxylation',
     'gamma_carboxyglutamic_acid', 'lys_methylation', 'malonylation',
@@ -95,11 +95,11 @@ PTM_TYPES = (
     'o_linked_glycosylation', 'n_linked_glycosylation',
 )
 
-# Umbrales calibrados por tipo (verificados contra
+# Per-type calibrated thresholds (verified against
 # PTM-Prediction/src/config/settings.py::DEEPPTMPRED_CALIBRATED_THRESHOLDS,
-# ya validados end-to-end en el pipeline standalone -- ver STATUS.md
-# "Calibracion real de DeepPTMPred"). Fallback generico 0.5 si un tipo
-# futuro no tiene calibracion propia.
+# already validated end-to-end in the standalone pipeline -- see STATUS.md
+# "Real DeepPTMPred calibration"). Generic 0.5 fallback if a future type
+# has no calibration of its own.
 CALIBRATED_THRESHOLDS = {
     'acetylation': 0.6350621,
     'arg_methylation': 0.34068727,
@@ -122,9 +122,9 @@ CALIBRATED_THRESHOLDS = {
 DEFAULT_MIN_PROBABILITY = 0.5
 
 NOINSTALL_WARNING = (
-    "DeepPTMPred no esta instalado correctamente. Revisa que el repo se haya clonado "
-    "(DEEPPTMPRED_HOME), que el checkpoint ESM-2 (junto con su companero "
-    "'-contact-regression.pt') este en DEEPPTMPRED_ESM_CHECKPOINT, y que PyRosetta este "
-    "instalado en el entorno conda del plugin (descarga manual, cuenta academica gratuita "
-    f"en {PYROSETTA_DOWNLOAD_URL}). Ver README.rst - Instalacion."
+    "DeepPTMPred is not installed correctly. Check that the repo has been cloned "
+    "(DEEPPTMPRED_HOME), that the ESM-2 checkpoint (together with its companion "
+    "'-contact-regression.pt' file) is at DEEPPTMPRED_ESM_CHECKPOINT, and that PyRosetta is "
+    "installed in the plugin's conda environment (manual download, free academic account "
+    f"at {PYROSETTA_DOWNLOAD_URL}). See README.rst - Installation."
 )

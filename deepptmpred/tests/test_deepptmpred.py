@@ -29,14 +29,14 @@ from pyworkflow.tests import BaseTest, setupTestProject
 
 from ..protocols import ProtDeepPTMPredPrediction
 
-# 7c4s descargado en vivo de RCSB (no un archivo local hardcodeado), mismo
-# fixture ya usado por scipion-chem-discotope/scipion-chem-scannet.
+# 7c4s downloaded live from RCSB (not a hardcoded local file), same fixture
+# already used by scipion-chem-discotope/scipion-chem-scannet.
 _TEST_PDB_ID = '7c4s'
-# Mismo gotcha real mmCIF label_asym_id vs auth_asym_id ya documentado en
-# scipion-chem-discotope/discotope/tests/test_discotope.py -- 'C' es el
-# label_asym_id que corresponde al author chain 'A' real (el antigeno, 283
-# residuos), NO 'A' (que en label_asym_id es la cadena ligera del
-# anticuerpo, 214 residuos). No "simplificar" esto de vuelta a 'A'.
+# Same real mmCIF label_asym_id vs auth_asym_id gotcha already documented in
+# scipion-chem-discotope/discotope/tests/test_discotope.py -- 'C' is the
+# label_asym_id that corresponds to the real author chain 'A' (the antigen,
+# 283 residues), NOT 'A' (which in label_asym_id is the antibody's light
+# chain, 214 residues). Do not "simplify" this back to 'A'.
 _TEST_CHAIN = 'C'
 
 
@@ -58,11 +58,11 @@ class TestDeepPTMPredPrediction(BaseTest):
 
     @classmethod
     def _runPrepareReceptorChain(cls, protImportPdb):
-        # usePDBFixer=True (forzar salida PDB legado real, necesaria porque
-        # DeepPTMPred usa PyRosetta/Bio.PDB sobre un PDB legado, no mmCIF) y
-        # addRes=False (evita el muestreo conformacional no determinista de
-        # PDBFixer --add-residues) -- mismos argumentos reales ya validados
-        # en scipion-chem-discotope para exactamente este mismo problema.
+        # usePDBFixer=True (force real legacy PDB output, needed because
+        # DeepPTMPred uses PyRosetta/Bio.PDB on a legacy PDB, not mmCIF) and
+        # addRes=False (avoids PDBFixer --add-residues' non-deterministic
+        # conformational sampling) -- same real arguments already validated
+        # in scipion-chem-discotope for exactly this same problem.
         protPrepareReceptor = cls.newProtocol(
             ProtChemPrepareReceptor,
             inputAtomStruct=protImportPdb.outputPdb,

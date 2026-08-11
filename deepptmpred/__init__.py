@@ -39,30 +39,29 @@ from .constants import (
     NOINSTALL_WARNING, PYROSETTA_DOWNLOAD_URL, UPSTREAM_URL,
 )
 
-_references = []  # DeepPTMPred no tiene una entrada BibTeX propia todavia (repo/README verificados, sin bibtex propio publicado).
+_references = []  # DeepPTMPred does not have its own BibTeX entry yet (repo/README verified, no published bibtex).
 
 
 class Plugin(pwchemPlugin):
-    """DeepPTMPred (kuikui-wang/DeepPTMPred, CC BY-NC 4.0 -- ver constants.py)
-    se instala clonando el repo upstream (trae sus propios pesos .h5 por
-    tipo de PTM) y construyendo un entorno conda dedicado (Python 3.10,
-    TensorFlow 2.15, PyTorch 2.0, fair-esm -- ver environment.yml real del
-    repo, ``pred/train_PTM/environment.yml``). DOS piezas quedan
-    manuales: el checkpoint ESM-2 (2.6GB + companero de regresion de
-    contactos) y PyRosetta (licencia academica gratuita, wheel no
-    redistribuible ni descargable de forma fiable en este entorno -- ver
-    STATUS.md del proyecto hermano). El runner que invoca ambas librerias
-    (``scripts/deepptmpred_runner.py``) esta VENDORIZADO byte-a-byte desde
-    el proyecto standalone, con 3 parches cientificos reales ya aplicados
-    (ver docstring de ese archivo) -- nunca se reescribe de memoria."""
+    """DeepPTMPred (kuikui-wang/DeepPTMPred, CC BY-NC 4.0 -- see constants.py)
+    is installed by cloning the upstream repo (it ships its own .h5 weights
+    per PTM type) and building a dedicated conda environment (Python 3.10,
+    TensorFlow 2.15, PyTorch 2.0, fair-esm -- see the repo's real
+    environment.yml, ``pred/train_PTM/environment.yml``). TWO pieces remain
+    manual: the ESM-2 checkpoint (2.6GB + its contact-regression companion)
+    and PyRosetta (free academic license, wheel not redistributable nor
+    reliably downloadable in this environment -- see the sibling project's
+    STATUS.md). The runner that invokes both libraries
+    (``scripts/deepptmpred_runner.py``) is VENDORIZED byte-for-byte from
+    the standalone project, with 3 real scientific patches already applied
+    (see that file's docstring) -- never rewritten from memory."""
 
     @classmethod
     def _defineVariables(cls):
         cls._defineEmVar(DEEPPTMPRED_DIC['home'], cls.getEnvName(DEEPPTMPRED_DIC))
         cls._defineVar(DEEPPTMPRED_DIC['activation'], cls.getEnvActivationCommand(DEEPPTMPRED_DIC))
-        # Vacio por defecto (mismo patron que DEEPMVP_MODEL_DIR): el
-        # usuario debe apuntarlo al checkpoint ESM-2 tras la descarga
-        # manual.
+        # Empty by default (same pattern as DEEPMVP_MODEL_DIR): the user
+        # must point it to the ESM-2 checkpoint after the manual download.
         cls._defineVar(DEEPPTMPRED_DIC['esm_checkpoint'], '')
 
     @classmethod
@@ -76,27 +75,26 @@ class Plugin(pwchemPlugin):
         installer = InstallHelper(DEEPPTMPRED_DIC['name'], packageHome=home,
                                   packageVersion=DEEPPTMPRED_DIC['version'])
 
-        # Clone ANTES del entorno conda (misma regla que DeepMVP/NetCleave/
-        # StackGlyEmbed -- ver sus __init__.py para la explicacion completa
-        # del problema que esto evita).
+        # Clone BEFORE the conda environment (same rule as DeepMVP/NetCleave/
+        # StackGlyEmbed -- see their __init__.py for the full explanation of
+        # the problem this avoids).
         #
-        # pythonVersion='3.10' (environment.yml real del repo, seccion
-        # 'python=3.10'). cudatoolkit/cudnn del environment.yml real NO se
-        # instalan aqui: verificado en PTM-Prediction/STATUS.md que el
-        # entorno funciona 100% en CPU en una maquina sin GPU (TF 2.15 +
-        # torch 2.0 + fair-esm importan y ejecutan sin CUDA), y forzar
-        # cudatoolkit=11.8 fallaria la instalacion en cualquier maquina sin
-        # los drivers NVIDIA correspondientes -- mismo criterio ya aplicado
-        # a StackGlyEmbed (torch CPU-only explicito).
+        # pythonVersion='3.10' (the repo's real environment.yml, 'python=3.10'
+        # section). cudatoolkit/cudnn from the real environment.yml are NOT
+        # installed here: verified in PTM-Prediction/STATUS.md that the
+        # environment works 100% on CPU on a machine with no GPU (TF 2.15 +
+        # torch 2.0 + fair-esm import and run without CUDA), and forcing
+        # cudatoolkit=11.8 would fail the installation on any machine
+        # without the corresponding NVIDIA drivers -- same criterion already
+        # applied to StackGlyEmbed (explicit CPU-only torch).
         #
-        # pip installs: tensorflow==2.15/tensorflow-addons/fair-esm del
-        # environment.yml real, MAS matplotlib/seaborn/scikit-learn/
-        # imbalanced-learn/tqdm/joblib/logomaker -- verificado en
-        # STATUS.md ("Dependencias de environment.yml incompletas en el
-        # conda env real") que el conda 'pip:' block real de este repo NO
-        # trae estas 7 pese a que 'predict.py' las importa; verificado
-        # ejecutando 'import predict' sin ellas (falla) y con ellas
-        # (funciona).
+        # pip installs: tensorflow==2.15/tensorflow-addons/fair-esm from the
+        # real environment.yml, PLUS matplotlib/seaborn/scikit-learn/
+        # imbalanced-learn/tqdm/joblib/logomaker -- verified in STATUS.md
+        # ("Incomplete environment.yml dependencies in the real conda env")
+        # that this repo's real conda 'pip:' block does not ship these 7
+        # even though 'predict.py' imports them; verified by running
+        # 'import predict' without them (fails) and with them (works).
         installer.addCommand(
             f"git clone --depth 1 {UPSTREAM_URL} {home}",
             'DEEPPTMPRED_CLONED'
@@ -174,7 +172,7 @@ class Plugin(pwchemPlugin):
 
     @classmethod
     def getRunnerScriptPath(cls):
-        # Vendorizado dentro de ESTE plugin (no del repo clonado) -- ver
+        # Vendorized inside THIS plugin (not the cloned repo) -- see
         # scripts/deepptmpred_runner.py.
         pluginDir = os.path.dirname(os.path.abspath(__file__))
         return os.path.join(pluginDir, 'scripts', 'deepptmpred_runner.py')
@@ -185,9 +183,10 @@ class Plugin(pwchemPlugin):
     def runDeepPTMPred(cls, protocol, args, cwd=None):
         activation = cls.getVar(DEEPPTMPRED_DIC['activation'])
         scriptPath = cls.getRunnerScriptPath()
-        # MPLBACKEND=Agg (mismo motivo real documentado en
+        # MPLBACKEND=Agg (same real reason documented in
         # PTM-Prediction/src/engines/deepptmpred_engine.py): 'predict.py'
-        # importa matplotlib.pyplot y hereda un backend interactivo/inline
-        # del proceso padre que no existe en el entorno conda aislado.
+        # imports matplotlib.pyplot and would inherit an interactive/inline
+        # backend from the parent process that does not exist in the
+        # isolated conda environment.
         fullProgram = f'MPLBACKEND=Agg {activation} && python {scriptPath}'
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
