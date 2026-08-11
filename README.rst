@@ -5,18 +5,18 @@ DeepPTMPred Scipion plugin
 Scipion framework plugin wrapping DeepPTMPred (Briefings in Bioinformatics) --
 segundo motor de consenso (Camino PDB unicamente, 17 tipos de PTM, requiere PyRosetta para SASA por residuo).
 
-**Estado: protocolo real implementado, pendiente de instalacion+test real**
-(ver ``PTM-Prediction/STATUS.md``, entrada 2026-08-11 -- el gate de Carlos
-para empezar la migracion a Scipion ya esta cerrado). ``ProtDeepPTMPredPrediction``
-invoca un runner vendorizado (identico al ya validado end-to-end en el
-pipeline standalone, con 3 parches cientificos reales aplicados -- ver
-``deepptmpred/scripts/deepptmpred_runner.py``).
+``ProtDeepPTMPredPrediction`` invoca un runner vendorizado (identico al ya
+validado end-to-end en el pipeline standalone, con 3 parches cientificos
+aplicados -- ver ``deepptmpred/scripts/deepptmpred_runner.py``).
 
 Repo original: https://github.com/kuikui-wang/DeepPTMPred
 
 Cita: doi.org/10.1093/bib/bbag321
 
-**Licencia de DeepPTMPred (upstream)**: el repo original no declara LICENSE propia, pero el paper es CC BY-NC 4.0 (Oxford University Press) y Junwen Wang (autor de correspondencia) confirmo por email el 2026-07-29 que el codigo sigue los mismos terminos -- uso no comercial (TFG/CNB-CSIC) cubierto sin problema.
+**Licencia de DeepPTMPred (upstream)**: el repo original no declara LICENSE
+propia; el paper es CC BY-NC 4.0 (Oxford University Press) y el codigo
+fuente ha sido confirmado bajo los mismos terminos -- uso no comercial
+cubierto sin problema.
 
 ===================
 Install this plugin

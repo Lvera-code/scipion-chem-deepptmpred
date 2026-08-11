@@ -78,7 +78,7 @@ class Plugin(pwchemPlugin):
 
         # Clone ANTES del entorno conda (misma regla que DeepMVP/NetCleave/
         # StackGlyEmbed -- ver sus __init__.py para la explicacion completa
-        # del bug real que esto evita).
+        # del problema que esto evita).
         #
         # pythonVersion='3.10' (environment.yml real del repo, seccion
         # 'python=3.10'). cudatoolkit/cudnn del environment.yml real NO se
@@ -94,8 +94,8 @@ class Plugin(pwchemPlugin):
         # imbalanced-learn/tqdm/joblib/logomaker -- verificado en
         # STATUS.md ("Dependencias de environment.yml incompletas en el
         # conda env real") que el conda 'pip:' block real de este repo NO
-        # trae estas 7 pese a que 'predict.py' las importa; confirmado real
-        # corriendo 'import predict' sin ellas (falla) y con ellas
+        # trae estas 7 pese a que 'predict.py' las importa; verificado
+        # ejecutando 'import predict' sin ellas (falla) y con ellas
         # (funciona).
         installer.addCommand(
             f"git clone --depth 1 {UPSTREAM_URL} {home}",

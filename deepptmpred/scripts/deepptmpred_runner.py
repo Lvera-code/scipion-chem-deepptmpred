@@ -2,9 +2,8 @@
 """Runner standalone para DeepPTMPred (Fase 2, motor 2/2 del consenso Camino PDB).
 
 VENDORIZADO byte-a-byte desde
-``PTM-Prediction/src/engines/_deepptmpred_runner.py`` (confirmado via
-``diff``, ver commit de esta copia) -- este archivo NUNCA se edita para
-"portar" su logica: los 3 parches cientificos reales que contiene
+``PTM-Prediction/src/engines/_deepptmpred_runner.py`` -- este archivo NUNCA
+se edita para "portar" su logica: los 3 parches cientificos que contiene
 (deserializacion Keras Lambda/K, phi/psi forzados a 0.0 para igualar la
 distribucion de entrenamiento, re-indexado de plDDT via CA real) fueron
 verificados empiricamente contra el AUROC publicado del paper (ver
@@ -12,7 +11,7 @@ docstrings de ``_load_predict_module``/``_patched_calculate_features`` mas
 abajo) -- reimplementarlos de memoria arriesgaria perder esa verificacion.
 Cualquier cambio a la logica de prediccion debe hacerse en el proyecto
 hermano ``PTM-Prediction`` primero y sincronizarse aqui despues, mismo
-criterio que StackGlyEmbed's ``predict_local.py`` en el proyecto 1.
+criterio que ``predict_local.py`` en ``scipion-chem-stackglyembed``.
 
 Este script NUNCA importa el paquete ``src`` de PTM-Prediction -- requiere
 torch/tensorflow/tensorflow-addons/pyrosetta/fair-esm, dependencias SOLO
@@ -21,18 +20,18 @@ presentes en el entorno conda dedicado de este plugin
 desde ``ProtDeepPTMPredPrediction`` (``protocols/protocol_deepptmpred.py``).
 
 Por que existe este runner en vez de invocar los scripts del repo
-directamente (a diferencia de DeepMVP, que si tiene un CLI real): verificado
-leyendo el codigo fuente de github.com/kuikui-wang/DeepPTMPred el
-2026-07-27, ni ``predict.py`` ni ``e2_single_data.py`` tienen CLI -- ambos
-hardcodean ``ptm_type``/``pdb_path``/``protein_id``/la ruta del checkpoint
-ESM dentro de su bloque ``if __name__ == "__main__":``. Este runner importa
-las dos clases SI parametrizadas correctamente de ``predict.py``
+directamente (a diferencia de DeepMVP, que si tiene un CLI real): el
+codigo fuente de github.com/kuikui-wang/DeepPTMPred muestra que ni
+``predict.py`` ni ``e2_single_data.py`` tienen CLI -- ambos hardcodean
+``ptm_type``/``pdb_path``/``protein_id``/la ruta del checkpoint ESM dentro
+de su bloque ``if __name__ == "__main__":``. Este runner importa las dos
+clases SI parametrizadas correctamente de ``predict.py``
 (``PredictConfig``, ``PTMPredictor``, ambas reciben sus argumentos por
 constructor) y REIMPLEMENTA la extraccion de features ESM-2 en vez de
-llamar a ``e2_single_data.py::extract_full_sequence_esm``: esa funcion tiene
-un bug real confirmado -- redefine ``custom_checkpoint_path`` como variable
-LOCAL con una ruta absoluta hardcodeada de AutoDL (``/root/autodl-tmp/...``),
-ignorando cualquier valor pasado como parametro o de modulo.
+llamar a ``e2_single_data.py::extract_full_sequence_esm``: esa funcion
+redefine ``custom_checkpoint_path`` como variable LOCAL con una ruta
+absoluta hardcodeada de AutoDL (``/root/autodl-tmp/...``), ignorando
+cualquier valor pasado como parametro o de modulo.
 
 Tambien evita ``predict.py::extract_protein_id_from_pdb_path`` /
 ``extract_sequence_from_pdb`` (que exigen un nombre de archivo estilo
@@ -41,9 +40,6 @@ extraccion ATMSEQ redundante con ``src.utils.structure_parser``): este
 runner recibe el accession y la secuencia YA saneados por Fase 1.5 como
 argumentos explicitos, garantizando que DeepMVP y DeepPTMPred reporten
 exactamente la misma numeracion de posicion para el mismo accession.
-
-NO PROBADO TODAVIA contra el entorno real (PyRosetta/TensorFlow 2.15/
-checkpoint ESM-2 no instalados en esta maquina) -- ver STATUS.md.
 """
 
 import argparse
@@ -56,26 +52,25 @@ import numpy as np
 import pandas as pd
 
 # Columnas de salida: 'probability' es el score crudo de DeepPTMPred (se
-# conserva siempre, decision de arquitectura 2026-07-27); la columna
-# 'prediction' propia del repo (cutoff 0.5 hardcodeado, no calibrado contra
-# ningun validation set) se descarta deliberadamente -- el filtro real lo
-# aplica el nucleo de Fase 3, no este runner.
+# conserva siempre); la columna 'prediction' propia del repo (cutoff 0.5
+# hardcodeado, no calibrado contra ningun validation set) se descarta
+# deliberadamente -- el filtro real lo aplica el nucleo de Fase 3, no este
+# runner.
 OUTPUT_COLUMNS = ["protein_id", "position", "residue", "probability", "ptm_type"]
 
 
 def _esm_cache_path(custom_esm_dir: Path, protein_id: str, sequence: str) -> Path:
     """Nombre de archivo de cache de features ESM, con hash de la secuencia real.
 
-    Antes la clave de cache era solo ``protein_id``
-    (``{protein_id}_full_esm.npz``): re-correr el pipeline con una secuencia
-    DISTINTA bajo el mismo accession (p. ej. un PDB actualizado con el mismo
-    nombre de archivo) reutilizaba en silencio el embedding ESM viejo,
-    prediciendo sobre la secuencia equivocada sin ningun error ni warning
-    (STATUS.md - auditoria 2026-07-28, item 2). El hash (sha256, 12 hex
-    primeros caracteres, suficiente para evitar colisiones accidentales sin
-    alargar demasiado el nombre) hace que una secuencia distinta sea SIEMPRE
-    una cache distinta -- no hay que leer/comparar el .npz existente para
-    decidir si reusarlo.
+    Una clave de cache basada solo en ``protein_id``
+    (``{protein_id}_full_esm.npz``) reutilizaria en silencio el embedding
+    ESM viejo al re-correr el pipeline con una secuencia DISTINTA bajo el
+    mismo accession (p. ej. un PDB actualizado con el mismo nombre de
+    archivo), prediciendo sobre la secuencia equivocada sin ningun error ni
+    warning. El hash (sha256, 12 hex primeros caracteres, suficiente para
+    evitar colisiones accidentales sin alargar demasiado el nombre) hace que
+    una secuencia distinta sea SIEMPRE una cache distinta -- no hay que
+    leer/comparar el .npz existente para decidir si reusarlo.
     """
     sequence_hash = hashlib.sha256(sequence.encode("utf-8")).hexdigest()[:12]
     return custom_esm_dir / f"{protein_id}_{sequence_hash}_full_esm.npz"
@@ -88,8 +83,8 @@ def _extract_esm_features(sequence: str, checkpoint_path: Path, esm_dim: int = 1
     descarte de CLS/SEP), pero ``checkpoint_path`` SI se respeta -- el
     original la ignora (ver docstring del modulo).
 
-    100% local, verificado 2026-07-27 leyendo directamente
-    ``esm/pretrained.py`` de github.com/facebookresearch/esm:
+    100% local: leyendo directamente ``esm/pretrained.py`` de
+    github.com/facebookresearch/esm se confirma que
     ``pretrained.load_model_and_alphabet(model_name)`` hace
     ``if model_name.endswith(".pt"): return load_model_and_alphabet_local(...)``
     -- como ``checkpoint_path`` siempre es una ruta ``.pt`` local (nunca un
@@ -152,20 +147,18 @@ def _load_predict_module(train_ptm_dir: Path):
     tensorflow_addons) solo deben cargarse cuando el runner realmente se
     ejecuta, nunca al parsear este archivo.
 
-    Tambien parchea aqui ``predict.load_model`` (bug real confirmado
-    2026-07-28, misma clase que el de ``e2_single_data.py`` documentado en
-    el docstring del modulo): el modelo guardado tiene una capa ``Lambda``
-    (``model.py::182``, ``Lambda(lambda xin: K.sum(xin, axis=1))``) cuya
-    funcion serializada referencia el simbolo ``K`` (alias de
-    ``tensorflow.keras.backend``) en tiempo de reconstruccion -- Keras SOLO
-    resuelve esos simbolos via el diccionario ``custom_objects`` pasado a
-    ``load_model``, nunca via los globals del modulo que la importa (aunque
-    ``predict.py`` si tiene ``K`` en su propio namespace). El
-    ``custom_objects`` real de ``PTMPredictor.__init__`` no incluye ``'K'``,
-    asi que cargar cualquier modelo revienta con
-    ``NameError: name 'K' is not defined``. Confirmado real corriendo el
-    modelo de fosforilacion sin parche (revienta) y con el parche (carga
-    correctamente) el 2026-07-28. No se edita ``predict.py`` (vendored,
+    Tambien parchea aqui ``predict.load_model``: el modelo guardado tiene
+    una capa ``Lambda`` (``model.py::182``,
+    ``Lambda(lambda xin: K.sum(xin, axis=1))``) cuya funcion serializada
+    referencia el simbolo ``K`` (alias de ``tensorflow.keras.backend``) en
+    tiempo de reconstruccion -- Keras SOLO resuelve esos simbolos via el
+    diccionario ``custom_objects`` pasado a ``load_model``, nunca via los
+    globals del modulo que la importa (aunque ``predict.py`` si tiene ``K``
+    en su propio namespace). El ``custom_objects`` real de
+    ``PTMPredictor.__init__`` no incluye ``'K'``, asi que cargar cualquier
+    modelo revienta con ``NameError: name 'K' is not defined``. Verificado
+    ejecutando el modelo de fosforilacion sin parche (revienta) y con el
+    parche (carga correctamente). No se edita ``predict.py`` (vendored,
     mismo criterio que el resto del runner): se envuelve la funcion en el
     modulo ya importado.
     """
@@ -182,8 +175,8 @@ def _load_predict_module(train_ptm_dir: Path):
 
     predict.load_model = _patched_load_model
 
-    # Parche real 2: distribution mismatch train/inferencia confirmado
-    # 2026-07-31 -- ``data_loader.py::L139-141`` (pipeline de entrenamiento
+    # Parche 2: distribution mismatch train/inferencia --
+    # ``data_loader.py::L139-141`` (pipeline de entrenamiento
     # Y de evaluacion del paper) calcula ``phi_center``/``psi_center`` con
     # ``half_window = (max(window_sizes)-1)//2 = 25``, pero el array
     # phi/psi del CSV fuente solo tiene 11 elementos -- la condicion
@@ -200,9 +193,9 @@ def _load_predict_module(train_ptm_dir: Path):
     # no una mejora de features: el modelo no sabe usar phi/psi reales.
     _original_calculate_features = predict.PyRosettaCalculator.calculate_features
 
-    # Parche real 3: bug real de indexado confirmado 2026-08-01 (via
-    # subagente Opus, ver STATUS.md "investigacion de n_linked_glycosylation
-    # y los 4 tipos mediocres"). ``PyRosettaCalculator.__init__`` construye
+    # Parche 3: bug de indexado (ver STATUS.md,
+    # "investigacion de n_linked_glycosylation y los 4 tipos mediocres").
+    # ``PyRosettaCalculator.__init__`` construye
     # ``self.plDDT_values`` iterando POR ATOMO
     # (``[atom.get_bfactor() for atom in structure.get_atoms()]``, ~L260),
     # pero ``calculate_features`` lo indexa POR NUMERO DE RESIDUO

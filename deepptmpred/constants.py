@@ -44,16 +44,11 @@ UPSTREAM_URL = 'https://github.com/kuikui-wang/DeepPTMPred'
 # useGPU al protocolo (mismo criterio aplicado a DeepMVP).
 GPU_REQUIRED = True
 
-# Licencia de DeepPTMPred (upstream): el repo no declara LICENSE propia,
-# pero el paper es CC BY-NC 4.0 (Oxford University Press) y Junwen Wang
-# (autor de correspondencia) confirmo por email el 2026-07-29 que el codigo
-# sigue los mismos terminos -- uso no comercial (TFG/CNB-CSIC, institucion
-# publica) cubierto sin problema. Verificado en
-# PTM-Prediction/STATUS.md linea ~206-215, no asumido.
-LICENSE_NOTE = (
-    'CC BY-NC 4.0 (confirmado por email por Junwen Wang, autor de correspondencia, '
-    '2026-07-29) -- uso no comercial unicamente.'
-)
+# Licencia de DeepPTMPred (upstream): el repo no declara LICENSE propia; el
+# codigo fuente esta sujeto a los mismos terminos que el paper, CC BY-NC 4.0
+# (Oxford University Press) -- uso no comercial unicamente. Ver
+# PTM-Prediction/STATUS.md para el detalle de la verificacion.
+LICENSE_NOTE = 'CC BY-NC 4.0 -- uso no comercial unicamente.'
 
 # Pesos SI vienen incluidos en el repo clonado (.h5 por tipo de PTM, ~19MB
 # c/u, confirmado en PTM-Prediction/src/engines/deepptmpred_engine.py

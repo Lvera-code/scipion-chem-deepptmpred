@@ -110,11 +110,10 @@ class ProtDeepPTMPredPrediction(EMProtocol):
         sequence = extract_chain_sequence(pdbPath)
         proteinId = os.path.splitext(os.path.basename(pdbPath))[0]
 
-        # Rutas ABSOLUTAS obligatorias (bug real encontrado 2026-08-11 via
-        # 'scipion3 test' real sobre scipion-chem-deepmvp, mismo patron
-        # aplica aqui): el subproceso corre con cwd=train_ptm_dir, una ruta
-        # relativa de self._getExtraPath() se resolveria contra ese cwd
-        # equivocado, no la raiz del proyecto Scipion.
+        # Rutas ABSOLUTAS obligatorias: el subproceso corre con
+        # cwd=train_ptm_dir, una ruta relativa de self._getExtraPath() se
+        # resolveria contra ese cwd equivocado, no la raiz del proyecto
+        # Scipion (mismo patron que scipion-chem-deepmvp).
         esmCacheDir = os.path.abspath(self._getExtraPath('esm_cache'))
         os.makedirs(esmCacheDir, exist_ok=True)
 
