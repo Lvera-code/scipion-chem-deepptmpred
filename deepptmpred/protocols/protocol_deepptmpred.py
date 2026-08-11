@@ -44,6 +44,8 @@ OUTPUT_COLUMNS = ['protein_id', 'position', 'residue', 'probability', 'ptm_type'
 
 class ProtDeepPTMPredPrediction(EMProtocol):
     """
+    AI Generated:
+
     Predicts PTM candidate sites (17 types: phosphorylation, acetylation,
     ubiquitination, hydroxylation, gamma-carboxyglutamic acid, lysine/
     arginine methylation, malonylation, crotonylation, succinylation,
