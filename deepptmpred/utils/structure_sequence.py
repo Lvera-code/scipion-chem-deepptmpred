@@ -30,11 +30,10 @@ be a SINGLE chain (same contract as ``scipion-chem-discotope``/
 of the UPSTREAM protocol -- e.g. ``ProtChemPrepareReceptor`` -- not this
 plugin).
 
-Logic vendorized (same "each plugin keeps its own minimal copy" policy as
-StackGlyEmbed/NetCleave) from
-``PTM-Prediction/src/utils/structure_parser.py``, already validated
-end-to-end in the standalone pipeline: residue resolution via the CCD
-(``gemmi.find_tabulated_residue``, automatically resolves modified
+Each plugin keeps its own minimal copy of this logic (same policy as
+StackGlyEmbed/NetCleave, rather than a shared dependency): residue
+resolution via the CCD (``gemmi.find_tabulated_residue``, automatically
+resolves modified
 residues -- MSE->M, SEP->S, TPO->T, PTR->Y, CSO->C, etc.) instead of
 ``ResidueSpan.make_one_letter_sequence()`` (can misalign the character
 count against the real number of residues on an unrecognized name).

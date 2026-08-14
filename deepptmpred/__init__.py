@@ -50,11 +50,11 @@ class Plugin(pwchemPlugin):
     environment.yml, ``pred/train_PTM/environment.yml``). TWO pieces remain
     manual: the ESM-2 checkpoint (2.6GB + its contact-regression companion)
     and PyRosetta (free academic license, wheel not redistributable nor
-    reliably downloadable in this environment -- see the sibling project's
-    STATUS.md). The runner that invokes both libraries
-    (``scripts/deepptmpred_runner.py``) is VENDORIZED byte-for-byte from
-    the standalone project, with 3 real scientific patches already applied
-    (see that file's docstring) -- never rewritten from memory."""
+    reliably downloadable in this environment). The runner that invokes
+    both libraries (``scripts/deepptmpred_runner.py``) is a maintained,
+    byte-for-byte vendored copy (never rewritten from memory) of the
+    original ``predict.py``, with 3 real scientific patches applied on top
+    (see that file's docstring)."""
 
     @classmethod
     def _defineVariables(cls):
@@ -81,20 +81,19 @@ class Plugin(pwchemPlugin):
         #
         # pythonVersion='3.10' (the repo's real environment.yml, 'python=3.10'
         # section). cudatoolkit/cudnn from the real environment.yml are NOT
-        # installed here: verified in PTM-Prediction/STATUS.md that the
-        # environment works 100% on CPU on a machine with no GPU (TF 2.15 +
-        # torch 2.0 + fair-esm import and run without CUDA), and forcing
-        # cudatoolkit=11.8 would fail the installation on any machine
-        # without the corresponding NVIDIA drivers -- same criterion already
-        # applied to StackGlyEmbed (explicit CPU-only torch).
+        # installed here: the environment works 100% on CPU on a machine
+        # with no GPU (TF 2.15 + torch 2.0 + fair-esm import and run without
+        # CUDA), and forcing cudatoolkit=11.8 would fail the installation on
+        # any machine without the corresponding NVIDIA drivers -- same
+        # criterion already applied to StackGlyEmbed (explicit CPU-only
+        # torch).
         #
         # pip installs: tensorflow==2.15/tensorflow-addons/fair-esm from the
         # real environment.yml, PLUS matplotlib/seaborn/scikit-learn/
-        # imbalanced-learn/tqdm/joblib/logomaker -- verified in STATUS.md
-        # ("Incomplete environment.yml dependencies in the real conda env")
-        # that this repo's real conda 'pip:' block does not ship these 7
-        # even though 'predict.py' imports them; verified by running
-        # 'import predict' without them (fails) and with them (works).
+        # imbalanced-learn/tqdm/joblib/logomaker: this repo's real conda
+        # 'pip:' block does not ship these 7 even though 'predict.py'
+        # imports them -- verified by running 'import predict' without them
+        # (fails) and with them (works).
         installer.addCommand(
             f"git clone --depth 1 {UPSTREAM_URL} {home}",
             'DEEPPTMPRED_CLONED'
@@ -183,10 +182,8 @@ class Plugin(pwchemPlugin):
     def runDeepPTMPred(cls, protocol, args, cwd=None):
         activation = cls.getVar(DEEPPTMPRED_DIC['activation'])
         scriptPath = cls.getRunnerScriptPath()
-        # MPLBACKEND=Agg (same real reason documented in
-        # PTM-Prediction/src/engines/deepptmpred_engine.py): 'predict.py'
-        # imports matplotlib.pyplot and would inherit an interactive/inline
-        # backend from the parent process that does not exist in the
-        # isolated conda environment.
+        # MPLBACKEND=Agg: 'predict.py' imports matplotlib.pyplot and would
+        # inherit an interactive/inline backend from the parent process
+        # that does not exist in the isolated conda environment.
         fullProgram = f'MPLBACKEND=Agg {activation} && python {scriptPath}'
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)

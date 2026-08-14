@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 """Standalone runner for DeepPTMPred (Phase 2, engine 2/2 of the PDB-path consensus).
 
-VENDORIZED byte-for-byte from
-``PTM-Prediction/src/engines/_deepptmpred_runner.py`` -- this file is NEVER
-edited to "port" its logic: the 3 scientific patches it contains (Keras
-Lambda/K deserialization, phi/psi forced to 0.0 to match the training
-distribution, plDDT re-indexing via the real CA atom) were empirically
-verified against the paper's published AUROC (see the docstrings of
-``_load_predict_module``/``_patched_calculate_features`` below) --
-reimplementing them from memory would risk losing that verification. Any
-change to the prediction logic must be made in the sibling
-``PTM-Prediction`` project first and synced here afterward, same criterion
-as ``predict_local.py`` in ``scipion-chem-stackglyembed``.
+A maintained, byte-for-byte vendored copy of the upstream ``predict.py`` --
+this file is NEVER edited to "port" its logic: the 3 scientific patches it
+contains (Keras Lambda/K deserialization, phi/psi forced to 0.0 to match
+the training distribution, plDDT re-indexing via the real CA atom) were
+empirically verified against the paper's published AUROC (see the
+docstrings of ``_load_predict_module``/``_patched_calculate_features``
+below) -- reimplementing them from memory would risk losing that
+verification. Any change to the prediction logic must be re-validated the
+same way before being applied here, same criterion as
+``predict_local.py`` in ``scipion-chem-stackglyembed``.
 
-This script NEVER imports PTM-Prediction's ``src`` package -- it requires
-torch/tensorflow/tensorflow-addons/pyrosetta/fair-esm, dependencies ONLY
-present in this plugin's dedicated conda environment
+This script has no dependency on any package outside this plugin -- it
+requires torch/tensorflow/tensorflow-addons/pyrosetta/fair-esm,
+dependencies ONLY present in this plugin's dedicated conda environment
 (``DEEPPTMPRED_ACTIVATION_CMD``). It is invoked EXCLUSIVELY via subprocess
 from ``ProtDeepPTMPredPrediction`` (``protocols/protocol_deepptmpred.py``).
 
@@ -194,9 +193,9 @@ def _load_predict_module(train_ptm_dir: Path):
     # improvement: the model does not know how to use real phi/psi.
     _original_calculate_features = predict.PyRosettaCalculator.calculate_features
 
-    # Patch 3: indexing bug (see STATUS.md,
-    # "n_linked_glycosylation and the 4 mediocre types investigation").
-    # ``PyRosettaCalculator.__init__`` builds
+    # Patch 3: indexing bug found while investigating why
+    # n_linked_glycosylation and 3 other types scored below the paper's
+    # reported AUROC. ``PyRosettaCalculator.__init__`` builds
     # ``self.plDDT_values`` by iterating PER ATOM
     # (``[atom.get_bfactor() for atom in structure.get_atoms()]``, ~L260),
     # but ``calculate_features`` indexes it PER RESIDUE NUMBER

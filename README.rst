@@ -6,9 +6,9 @@ Scipion framework plugin wrapping DeepPTMPred (Briefings in Bioinformatics) --
 second consensus engine (PDB path only, 17 PTM types, requires PyRosetta for
 per-residue SASA).
 
-``ProtDeepPTMPredPrediction`` invokes a vendorized runner (identical to the
-one already validated end-to-end in the standalone pipeline, with 3
-scientific patches applied -- see ``deepptmpred/scripts/deepptmpred_runner.py``).
+``ProtDeepPTMPredPrediction`` invokes a vendorized runner, a maintained
+byte-for-byte copy of the upstream ``predict.py`` with 3 real scientific
+patches applied -- see ``deepptmpred/scripts/deepptmpred_runner.py``.
 
 Original repo: https://github.com/kuikui-wang/DeepPTMPred
 

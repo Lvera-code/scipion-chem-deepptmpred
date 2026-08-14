@@ -39,27 +39,24 @@ UPSTREAM_URL = 'https://github.com/kuikui-wang/DeepPTMPred'
 # Confirmed by reading the vendorized runner (scripts/deepptmpred_runner.py::
 # _extract_esm_features, line ~101): 'torch.device("cuda" if
 # torch.cuda.is_available() else "cpu")' -- decided IN CODE, with no CLI
-# flag to expose (unlike TMbed/DiscoTope-3.0, the only 2 plugins in project 1
-# with a real GPU flag). No useGPU parameter is added to the protocol (same
-# criterion applied to DeepMVP).
+# flag to expose (unlike TMbed/DiscoTope-3.0, which do expose a real GPU
+# flag). No useGPU parameter is added to the protocol (same criterion
+# applied to DeepMVP).
 GPU_REQUIRED = True
 
 # DeepPTMPred license (upstream): the repo does not declare its own LICENSE;
 # the source code is subject to the same terms as the paper, CC BY-NC 4.0
-# (Oxford University Press) -- non-commercial use only. See
-# PTM-Prediction/STATUS.md for the verification details.
+# (Oxford University Press) -- non-commercial use only.
 LICENSE_NOTE = 'CC BY-NC 4.0 -- non-commercial use only.'
 
-# Weights ARE included in the cloned repo (.h5 per PTM type, ~19MB each,
-# confirmed in the PTM-Prediction/src/engines/deepptmpred_engine.py
-# docstring) -- unlike DeepMVP, there is no separate model download.
+# Weights ARE included in the cloned repo (.h5 per PTM type, ~19MB each) --
+# unlike DeepMVP, there is no separate model download.
 #
 # The ESM-2 checkpoint (esm2_t33_650M_UR50D.pt, 2.6GB) IS manual: although
 # 'fair-esm' normally allows downloading it via its own code
-# (dl.fbaipublicfiles.com), PTM-Prediction/STATUS.md (line ~185) records
-# that it was installed manually in this same organization -- the same
-# pattern is kept here rather than automating a download never before
-# verified in a real 'scipion3 installb' run. It must be accompanied by
+# (dl.fbaipublicfiles.com), that download was found to be unreliable in a
+# real 'scipion3 installb' run -- manual install is kept rather than
+# automating a download that cannot be relied on. It must be accompanied by
 # 'esm2_t33_650M_UR50D-contact-regression.pt' (required companion file, see
 # the docstring of 'scripts/deepptmpred_runner.py::_extract_esm_features')
 # in the SAME directory.
@@ -74,19 +71,18 @@ ESM_CONTACT_REGRESSION_URL = (
 )
 
 # PyRosetta: free academic license (RosettaCommons), wheel NOT
-# redistributable and not reliably downloadable in this environment
-# (STATUS.md line ~194-205: the installer's default mirrors failed, really
-# and reproducibly -- 404/TLS -- on this machine). 100% manual installation,
-# same pattern as NETMHCPAN_HOME in project 1: the user downloads the
-# wheel themselves (https://www.pyrosetta.org/downloads, requires a free
-# academic account) and installs it with 'pip install <wheel>' INSIDE this
-# plugin's conda environment.
+# redistributable and not reliably downloadable in this environment (the
+# installer's default mirrors failed, really and reproducibly -- 404/TLS --
+# on this machine). 100% manual installation, same pattern as
+# scipion-chem-netmhcpan's NETMHCPAN_HOME: the user downloads the wheel
+# themselves (https://www.pyrosetta.org/downloads, requires a free academic
+# account) and installs it with 'pip install <wheel>' INSIDE this plugin's
+# conda environment.
 PYROSETTA_DOWNLOAD_URL = 'https://www.pyrosetta.org/downloads'
 
 # 17 PTM types predicted by DeepPTMPred (one .h5 model per type, one runner
-# invocation per type) -- verified against
-# PTM-Prediction/src/config/settings.py::DEEPPTMPRED_PTM_TYPES, which in
-# turn cites the runner's real 'choices' list (line ~237-243).
+# invocation per type) -- matches the runner's own 'choices' list (see
+# 'scripts/deepptmpred_runner.py').
 PTM_TYPES = (
     'phosphorylation', 'acetylation', 'ubiquitination', 'hydroxylation',
     'gamma_carboxyglutamic_acid', 'lys_methylation', 'malonylation',
@@ -95,11 +91,9 @@ PTM_TYPES = (
     'o_linked_glycosylation', 'n_linked_glycosylation',
 )
 
-# Per-type calibrated thresholds (verified against
-# PTM-Prediction/src/config/settings.py::DEEPPTMPRED_CALIBRATED_THRESHOLDS,
-# already validated end-to-end in the standalone pipeline -- see STATUS.md
-# "Real DeepPTMPred calibration"). Generic 0.5 fallback if a future type
-# has no calibration of its own.
+# Per-type calibrated thresholds, empirically derived per PTM type rather
+# than using DeepPTMPred's own uniform 0.5 cutoff. Generic 0.5 fallback if
+# a future type has no calibration of its own.
 CALIBRATED_THRESHOLDS = {
     'acetylation': 0.6350621,
     'arg_methylation': 0.34068727,

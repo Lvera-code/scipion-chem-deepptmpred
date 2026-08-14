@@ -54,18 +54,15 @@ class ProtDeepPTMPredPrediction(EMProtocol):
     STRUCTURE, using a local DeepPTMPred installation (PyRosetta structural
     features -- SASA, phi/psi, local plDDT -- combined with ESM-2
     embeddings). Structure-only: unlike DeepMVP, DeepPTMPred requires a PDB
-    (no sequence-only mode), so it is only available in the "PDB path" of
-    the standalone PTM-Prediction pipeline
-    (``pipeline.py::run_fase2_pdb_motors``), where a downstream
-    ``scipion-chem-ptmannotation`` protocol fuses it with DeepMVP into
-    consensus.
+    (no sequence-only mode), so it is only usable when a structure is
+    available; a downstream ``scipion-chem-ptmannotation`` protocol fuses
+    its output with DeepMVP into a consensus call.
 
     Invokes DeepPTMPred once PER PTM TYPE (17 subprocess calls, one .h5
     model each -- DeepPTMPred has no single multi-type CLI, unlike
     DeepMVP), via a vendorized runner (``scripts/deepptmpred_runner.py``,
-    identical to the one already validated end-to-end in the standalone
-    pipeline, see its own docstring for the 3 real scientific patches it
-    applies on top of the vendored ``predict.py``).
+    see its own docstring for the 3 real scientific patches it applies on
+    top of the vendored ``predict.py``).
 
     Positions are 1-based over the ATMSEQ extracted directly from the input
     structure (NOT a separately-uploaded FASTA) -- for the consensus in
