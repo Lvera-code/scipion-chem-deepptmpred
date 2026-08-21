@@ -124,6 +124,17 @@ class Plugin(pwchemPlugin):
             f"grep -vE '^[[:space:]]*-[[:space:]]*(cudatoolkit|cudnn|pytorch)([[:space:]]*=|$)' "
             f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_filtered.yml; "
             f"fi && "
+            # Real upstream bug, confirmed with a real failed
+            # 'conda env update' run (2026-08-21, fresh clone from GitHub):
+            # the file's own 'pip:' block has 'tensorflow=2.15' (single
+            # '=', not valid pip requirement syntax -- pip's own error:
+            # "= is not a valid operator. Did you mean == ?"). A LOCAL,
+            # already-cloned copy of this repo elsewhere on this machine
+            # had this already fixed to 'tensorflow==2.15' (from an
+            # earlier, undocumented edit), which is why this was missed
+            # until a genuinely fresh clone was tested end-to-end.
+            f"sed -i 's/tensorflow=2\\.15/tensorflow==2.15/' "
+            f"{home}/pred/train_PTM/environment_filtered.yml && "
             f"{cls.getCondaActivationCmd()}conda env update -n {cls.getEnvName(DEEPPTMPRED_DIC)} "
             f"-f {home}/pred/train_PTM/environment_filtered.yml && "
             f"{cls.getEnvActivationCommand(DEEPPTMPRED_DIC)} && "

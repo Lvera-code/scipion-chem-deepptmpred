@@ -2,6 +2,22 @@
 CHANGES
 =========
 
+0.4.1
+=====
+- Fixed a real upstream bug found via an actual end-to-end fresh conda
+  env update on a Colab GPU session (Tesla T4, 2026-08-21): the real
+  ``pred/train_PTM/environment.yml``'s own ``pip:`` block has
+  ``tensorflow=2.15`` (single ``=``, invalid pip requirement syntax --
+  real error: "= is not a valid operator. Did you mean == ?"). An
+  earlier, undocumented edit had already patched a LOCAL clone of this
+  repo elsewhere on this machine to ``==``, which is why this was missed
+  until a genuinely fresh clone from GitHub was tested. Fixed with a
+  ``sed`` patch on the filtered environment.yml before ``conda env
+  update``. Verified after the fix: the full GPU branch (real
+  ``cudatoolkit``/``cudnn``/torch install from the real file) completes
+  successfully, with ``torch.cuda.is_available()`` and
+  ``tf.config.list_physical_devices('GPU')`` both returning the real GPU.
+
 0.4.0
 =====
 - GPU support: ``USE_GPU``/``GPU_LIST`` hidden params added to
