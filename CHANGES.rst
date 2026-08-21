@@ -2,6 +2,15 @@
 CHANGES
 =========
 
+0.3.0
+=====
+- Installed from the repo's own real ``environment.yml`` (via
+  ``conda env update -f``, GPU-only conda entries filtered out) instead of
+  a hand-reconstructed package list. ESM-2 checkpoint (+ contact-regression
+  companion) now auto-downloaded at install time into
+  ``<DEEPPTMPRED_HOME>/checkpoints/`` -- only PyRosetta remains manual.
+  Removed unused ``READ_URL`` constant.
+
 0.2.0
 =====
 - Real protocol (``ProtDeepPTMPredPrediction``): single-chain structure ->

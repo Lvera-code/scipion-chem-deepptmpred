@@ -33,7 +33,6 @@ DEEPPTMPRED_DIC = {
     'esm_checkpoint': 'DEEPPTMPRED_ESM_CHECKPOINT',
 }
 
-READ_URL = 'https://github.com/Lvera-code/scipion-chem-deepptmpred'
 UPSTREAM_URL = 'https://github.com/kuikui-wang/DeepPTMPred'
 
 # Confirmed by reading the vendorized runner (scripts/deepptmpred_runner.py::
@@ -52,14 +51,18 @@ LICENSE_NOTE = 'CC BY-NC 4.0 -- non-commercial use only.'
 # Weights ARE included in the cloned repo (.h5 per PTM type, ~19MB each) --
 # unlike DeepMVP, there is no separate model download.
 #
-# The ESM-2 checkpoint (esm2_t33_650M_UR50D.pt, 2.6GB) IS manual: although
-# 'fair-esm' normally allows downloading it via its own code
-# (dl.fbaipublicfiles.com), that download was found to be unreliable in a
-# real 'scipion3 installb' run -- manual install is kept rather than
-# automating a download that cannot be relied on. It must be accompanied by
+# The ESM-2 checkpoint (esm2_t33_650M_UR50D.pt, 2.6GB) is now auto-downloaded
+# at install time into '<DEEPPTMPRED_HOME>/checkpoints/' (see
+# addDeepPTMPredPackage in __init__.py). It must be accompanied by
 # 'esm2_t33_650M_UR50D-contact-regression.pt' (required companion file, see
 # the docstring of 'scripts/deepptmpred_runner.py::_extract_esm_features')
-# in the SAME directory.
+# in the SAME directory -- also auto-downloaded.
+# Re-verified 2026-08-21 (curl -sIL on both URLs: real 200, correct
+# content-length, served via CloudFront/S3) after an earlier session found
+# this download unreliable inside a real 'scipion3 installb' run and kept it
+# manual -- '--retry 3' added to the install command below as a hedge
+# against that previously-observed flakiness recurring, rather than
+# assuming today's success makes it permanently reliable.
 ESM_CHECKPOINT_FILENAME = 'esm2_t33_650M_UR50D.pt'
 ESM_CONTACT_REGRESSION_FILENAME = 'esm2_t33_650M_UR50D-contact-regression.pt'
 ESM_DOWNLOAD_URL = (

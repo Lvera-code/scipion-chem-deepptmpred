@@ -35,8 +35,9 @@ from scipion.install.funcs import InstallHelper
 from pwchem import Plugin as pwchemPlugin
 
 from .constants import (
-    DEEPPTMPRED_DIC, ESM_CONTACT_REGRESSION_FILENAME, ESM_CHECKPOINT_FILENAME,
-    NOINSTALL_WARNING, PYROSETTA_DOWNLOAD_URL, UPSTREAM_URL,
+    DEEPPTMPRED_DIC, ESM_CONTACT_REGRESSION_FILENAME, ESM_CONTACT_REGRESSION_URL,
+    ESM_CHECKPOINT_FILENAME, ESM_DOWNLOAD_URL, NOINSTALL_WARNING, PYROSETTA_DOWNLOAD_URL,
+    UPSTREAM_URL,
 )
 
 _references = []  # DeepPTMPred does not have its own BibTeX entry yet (repo/README verified, no published bibtex).
@@ -45,11 +46,12 @@ _references = []  # DeepPTMPred does not have its own BibTeX entry yet (repo/REA
 class Plugin(pwchemPlugin):
     """DeepPTMPred (kuikui-wang/DeepPTMPred, CC BY-NC 4.0 -- see constants.py)
     is installed by cloning the upstream repo (it ships its own .h5 weights
-    per PTM type) and building a dedicated conda environment (Python 3.10,
-    TensorFlow 2.15, PyTorch 2.0, fair-esm -- see the repo's real
-    environment.yml, ``pred/train_PTM/environment.yml``). TWO pieces remain
-    manual: the ESM-2 checkpoint (2.6GB + its contact-regression companion)
-    and PyRosetta (free academic license, wheel not redistributable nor
+    per PTM type) and building a dedicated conda environment from the
+    repo's own real ``pred/train_PTM/environment.yml`` (Python 3.10,
+    TensorFlow 2.15, PyTorch 2.0, fair-esm). The ESM-2 checkpoint (2.6GB +
+    its contact-regression companion) is auto-downloaded too, into
+    ``<DEEPPTMPRED_HOME>/checkpoints/``. ONE piece remains manual:
+    PyRosetta (free academic license, wheel not redistributable nor
     reliably downloadable in this environment). The runner that invokes
     both libraries (``scripts/deepptmpred_runner.py``) is a maintained,
     byte-for-byte vendored copy (never rewritten from memory) of the
@@ -60,8 +62,10 @@ class Plugin(pwchemPlugin):
     def _defineVariables(cls):
         cls._defineEmVar(DEEPPTMPRED_DIC['home'], cls.getEnvName(DEEPPTMPRED_DIC))
         cls._defineVar(DEEPPTMPRED_DIC['activation'], cls.getEnvActivationCommand(DEEPPTMPRED_DIC))
-        # Empty by default (same pattern as DEEPMVP_MODEL_DIR): the user
-        # must point it to the ESM-2 checkpoint after the manual download.
+        # Empty by default: 'getEsmCheckpointPath()' below falls back to
+        # where addDeepPTMPredPackage auto-downloads it
+        # ('<DEEPPTMPRED_HOME>/checkpoints/esm2_t33_650M_UR50D.pt') when
+        # this is unset -- still overridable via scipion.conf.
         cls._defineVar(DEEPPTMPRED_DIC['esm_checkpoint'], '')
 
     @classmethod
@@ -80,33 +84,46 @@ class Plugin(pwchemPlugin):
         # the problem this avoids).
         #
         # pythonVersion='3.10' (the repo's real environment.yml, 'python=3.10'
-        # section). cudatoolkit/cudnn from the real environment.yml are NOT
-        # installed here: the environment works 100% on CPU on a machine
-        # with no GPU (TF 2.15 + torch 2.0 + fair-esm import and run without
-        # CUDA), and forcing cudatoolkit=11.8 would fail the installation on
-        # any machine without the corresponding NVIDIA drivers -- same
-        # criterion already applied to StackGlyEmbed (explicit CPU-only
-        # torch).
+        # section).
         #
-        # pip installs: tensorflow==2.15/tensorflow-addons/fair-esm from the
-        # real environment.yml, PLUS matplotlib/seaborn/scikit-learn/
-        # imbalanced-learn/tqdm/joblib/logomaker: this repo's real conda
-        # 'pip:' block does not ship these 7 even though 'predict.py'
-        # imports them -- verified by running 'import predict' without them
-        # (fails) and with them (works).
+        # Installed FROM the repo's own real
+        # 'pred/train_PTM/environment.yml' (via 'conda env update -f'), not
+        # a hand-reconstructed package list -- so future upstream version
+        # bumps in that file propagate here without editing this plugin.
+        # Its 'cudatoolkit'/'cudnn'/'pytorch' conda entries are filtered out
+        # first (a plain 'conda env update -f' would otherwise install
+        # cudatoolkit=11.8 unconditionally, failing on any machine without
+        # matching NVIDIA drivers): a CPU-only 'torch==2.0.*' wheel is
+        # installed separately instead, same criterion already applied to
+        # scipion-chem-stackglyembed/-emngly/-metoken. Everything else in
+        # the file (numpy/scipy/pandas/h5py/biopython/biotite via conda,
+        # tensorflow==2.15/tensorflow-addons/fair-esm/scikit-learn/
+        # imbalanced-learn/matplotlib/seaborn/tqdm/joblib/logomaker via its
+        # own 'pip:' block) is installed as the file actually pins them.
         installer.addCommand(
             f"git clone --depth 1 {UPSTREAM_URL} {home}",
             'DEEPPTMPRED_CLONED'
         ).getCondaEnvCommand(
             DEEPPTMPRED_DIC['name'], binaryVersion=DEEPPTMPRED_DIC['version'], pythonVersion='3.10'
         ).addCommand(
+            f"grep -vE '^[[:space:]]*-[[:space:]]*(cudatoolkit|cudnn|pytorch)([[:space:]]*=|$)' "
+            f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_cpu.yml && "
+            f"{cls.getCondaActivationCmd()}conda env update -n {cls.getEnvName(DEEPPTMPRED_DIC)} "
+            f"-f {home}/pred/train_PTM/environment_cpu.yml && "
             f"{cls.getEnvActivationCommand(DEEPPTMPRED_DIC)} && "
-            "pip install numpy scipy pandas h5py 'torch==2.0.*' biopython biotite "
-            "'tensorflow==2.15' tensorflow-addons fair-esm 'scikit-learn>=1.6.1' "
-            "'imbalanced-learn>=0.13.0' 'matplotlib>=3.10.3' 'seaborn>=0.13.2' "
-            "'tqdm>=4.67.1' 'joblib>=1.4.2' 'logomaker>=0.8.7'",
+            "pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.0.*'",
             'DEEPPTMPRED_INSTALLED'
-        ).addPackage(env, dependencies=['conda', 'git'], default=default)
+        ).addCommand(
+            # ESM-2 checkpoint auto-download (see constants.py for the
+            # 2026-08-21 re-verification of this URL's reliability).
+            # '--retry 3' hedges against the flakiness an earlier session
+            # found in a real install run.
+            f"mkdir -p {home}/checkpoints && "
+            f"curl -fsSL --retry 3 -o {home}/checkpoints/{ESM_CHECKPOINT_FILENAME} {ESM_DOWNLOAD_URL} && "
+            f"curl -fsSL --retry 3 -o {home}/checkpoints/{ESM_CONTACT_REGRESSION_FILENAME} "
+            f"{ESM_CONTACT_REGRESSION_URL}",
+            'DEEPPTMPRED_ESM_CHECKPOINT_DOWNLOADED'
+        ).addPackage(env, dependencies=['conda', 'git', 'curl'], default=default)
 
     @classmethod
     def validateInstallation(cls):
@@ -123,8 +140,9 @@ class Plugin(pwchemPlugin):
         esmCheckpoint = cls.getEsmCheckpointPath()
         if not esmCheckpoint or not os.path.isfile(esmCheckpoint):
             errors.append(
-                f"DEEPPTMPRED_ESM_CHECKPOINT ('{esmCheckpoint}') not found -- download "
-                f"'{ESM_CHECKPOINT_FILENAME}' manually (fair-esm's own weights, ~2.6GB)."
+                f"DEEPPTMPRED_ESM_CHECKPOINT ('{esmCheckpoint}') not found -- it should have been "
+                f"auto-downloaded from {ESM_DOWNLOAD_URL} at install time (~2.6GB). Re-run "
+                "'scipion3 installb deepptmpred' or, if that keeps failing, download it manually."
             )
         elif not os.path.isfile(os.path.join(os.path.dirname(esmCheckpoint), ESM_CONTACT_REGRESSION_FILENAME)):
             errors.append(
@@ -167,7 +185,12 @@ class Plugin(pwchemPlugin):
 
     @classmethod
     def getEsmCheckpointPath(cls):
-        return cls.getVar(DEEPPTMPRED_DIC['esm_checkpoint'])
+        configured = cls.getVar(DEEPPTMPRED_DIC['esm_checkpoint'])
+        if configured:
+            return configured
+        # Falls back to where addDeepPTMPredPackage auto-downloads the
+        # ESM-2 checkpoint when DEEPPTMPRED_ESM_CHECKPOINT is unset.
+        return os.path.join(cls.getDeepPTMPredDir(), 'checkpoints', ESM_CHECKPOINT_FILENAME)
 
     @classmethod
     def getRunnerScriptPath(cls):

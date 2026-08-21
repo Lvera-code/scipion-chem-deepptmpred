@@ -32,14 +32,17 @@ Install this plugin
             scipion3 installp -p . --devel
             scipion3 installb DeepPTMPred
 
-The repo (including its .h5 weights) and the conda environment (Python 3.10,
-TensorFlow 2.15, PyTorch 2.0, fair-esm) are installed automatically. TWO
-pieces remain **manual**:
+The repo (including its .h5 weights), the conda environment (Python 3.10,
+TensorFlow 2.15, PyTorch 2.0, fair-esm -- installed from the repo's own
+``pred/train_PTM/environment.yml``) AND the ESM-2 checkpoint
+(``esm2_t33_650M_UR50D.pt``, ~2.6GB, + its required companion file
+``esm2_t33_650M_UR50D-contact-regression.pt``) are all installed
+automatically, into ``<DEEPPTMPRED_HOME>/checkpoints/``. Only set
+``DEEPPTMPRED_ESM_CHECKPOINT`` in ``scipion.conf`` if you want to point at a
+different checkpoint instead.
 
-- ESM-2 checkpoint (``esm2_t33_650M_UR50D.pt``, ~2.6GB) + its required
-  companion file (``esm2_t33_650M_UR50D-contact-regression.pt``) in the SAME
-  directory -- point ``DEEPPTMPRED_ESM_CHECKPOINT`` (in ``scipion.conf``) to
-  the former.
+ONE piece remains **manual**:
+
 - PyRosetta (free academic license, account at
   https://www.pyrosetta.org/downloads) -- download the wheel and
   ``pip install <wheel>`` INSIDE the conda environment
