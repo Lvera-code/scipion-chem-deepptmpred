@@ -39,8 +39,9 @@ UPSTREAM_URL = 'https://github.com/kuikui-wang/DeepPTMPred'
 # _extract_esm_features, line ~101): 'torch.device("cuda" if
 # torch.cuda.is_available() else "cpu")' -- decided IN CODE, with no CLI
 # flag to expose (unlike TMbed/DiscoTope-3.0, which do expose a real GPU
-# flag). No useGPU parameter is added to the protocol (same criterion
-# applied to DeepMVP).
+# flag). The protocol's USE_GPU/GPU_LIST hidden params act on that
+# decision indirectly, via CUDA_VISIBLE_DEVICES (see runDeepPTMPred in
+# __init__.py), same criterion applied to DeepMVP/EMNGly/MeToken.
 GPU_REQUIRED = True
 
 # DeepPTMPred license (upstream): the repo does not declare its own LICENSE;

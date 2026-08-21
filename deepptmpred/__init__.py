@@ -30,6 +30,7 @@ DeepPTMPred installation (structure-based, 17 PTM types).
 import os
 import subprocess
 
+from pyworkflow.utils import Environ
 from scipion.install.funcs import InstallHelper
 
 from pwchem import Plugin as pwchemPlugin
@@ -100,18 +101,34 @@ class Plugin(pwchemPlugin):
         # tensorflow==2.15/tensorflow-addons/fair-esm/scikit-learn/
         # imbalanced-learn/matplotlib/seaborn/tqdm/joblib/logomaker via its
         # own 'pip:' block) is installed as the file actually pins them.
+        # GPU-conditional (checked via 'nvidia-smi' at install time, same
+        # criterion as scipion-chem-deepmvp): with a GPU present, keep the
+        # file's real 'cudatoolkit'/'cudnn' conda entries and install the
+        # default (CUDA-capable) torch wheel; without one (this dev
+        # machine's own case, so the else-branch is the one actually
+        # regression-tested here), strip them and use the CPU-only wheel
+        # -- exactly today's already-verified behavior, unchanged.
+        # 'pytorch' (the conda-channel entry) is ALWAYS stripped either
+        # way: torch is always installed via pip afterward for explicit
+        # control over which wheel (CPU/GPU) is chosen.
         installer.addCommand(
             f"git clone --depth 1 {UPSTREAM_URL} {home}",
             'DEEPPTMPRED_CLONED'
         ).getCondaEnvCommand(
             DEEPPTMPRED_DIC['name'], binaryVersion=DEEPPTMPRED_DIC['version'], pythonVersion='3.10'
         ).addCommand(
+            f"if command -v nvidia-smi > /dev/null 2>&1; then "
+            f"grep -vE '^[[:space:]]*-[[:space:]]*pytorch([[:space:]]*=|$)' "
+            f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_filtered.yml; "
+            f"else "
             f"grep -vE '^[[:space:]]*-[[:space:]]*(cudatoolkit|cudnn|pytorch)([[:space:]]*=|$)' "
-            f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_cpu.yml && "
+            f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_filtered.yml; "
+            f"fi && "
             f"{cls.getCondaActivationCmd()}conda env update -n {cls.getEnvName(DEEPPTMPRED_DIC)} "
-            f"-f {home}/pred/train_PTM/environment_cpu.yml && "
+            f"-f {home}/pred/train_PTM/environment_filtered.yml && "
             f"{cls.getEnvActivationCommand(DEEPPTMPRED_DIC)} && "
-            "pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.0.*'",
+            f"if command -v nvidia-smi > /dev/null 2>&1; then pip install 'torch==2.0.*'; "
+            f"else pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.0.*'; fi",
             'DEEPPTMPRED_INSTALLED'
         ).addCommand(
             # ESM-2 checkpoint auto-download (see constants.py for the
@@ -209,4 +226,16 @@ class Plugin(pwchemPlugin):
         # inherit an interactive/inline backend from the parent process
         # that does not exist in the isolated conda environment.
         fullProgram = f'MPLBACKEND=Agg {activation} && python {scriptPath}'
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
+        # CUDA_VISIBLE_DEVICES: the runner decides GPU/CPU itself
+        # ('torch.cuda.is_available()', no CLI flag) -- this is the real
+        # lever useGpu/gpuList (protocol_deepptmpred.py) have on that
+        # check. 'cls.getEnviron()' is never overridden anywhere in this
+        # project (always returns None, equivalent to inheriting
+        # os.environ) -- building a real copy here is additive. Must be a
+        # real 'pyworkflow.utils.Environ' (a dict subclass with extra
+        # methods like 'getPrepend()' pyworkflow's job runner calls) -- a
+        # plain dict fails with a real AttributeError, confirmed by an
+        # actual failed test run (see scipion-chem-deepmvp for the trace).
+        env = Environ(os.environ)
+        env['CUDA_VISIBLE_DEVICES'] = protocol.gpuList.get() if protocol.useGpu.get() else ''
+        protocol.runJob(fullProgram, args, env=env, cwd=cwd)

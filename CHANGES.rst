@@ -2,6 +2,18 @@
 CHANGES
 =========
 
+0.4.0
+=====
+- GPU support: ``USE_GPU``/``GPU_LIST`` hidden params added to
+  ``ProtDeepPTMPredPrediction``, wired to ``CUDA_VISIBLE_DEVICES`` in
+  ``runDeepPTMPred`` (the runner decides GPU/CPU itself via
+  ``torch.cuda.is_available()``, no native CLI flag -- this is the real
+  lever on that decision). Install now keeps the real ``cudatoolkit``/
+  ``cudnn`` conda entries and installs the default (CUDA-capable) torch
+  wheel when a GPU is detected; without one (this dev machine's case, the
+  only branch verified here) stays exactly the already-verified
+  CPU-only-wheel behavior.
+
 0.3.0
 =====
 - Installed from the repo's own real ``environment.yml`` (via
