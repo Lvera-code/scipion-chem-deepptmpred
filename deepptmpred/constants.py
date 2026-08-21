@@ -74,14 +74,19 @@ ESM_CONTACT_REGRESSION_URL = (
     'esm2_t33_650M_UR50D-contact-regression.pt'
 )
 
-# PyRosetta: free academic license (RosettaCommons), wheel NOT
-# redistributable and not reliably downloadable in this environment (the
-# installer's default mirrors failed, really and reproducibly -- 404/TLS --
-# on this machine). 100% manual installation, same pattern as
-# scipion-chem-netmhcpan's NETMHCPAN_HOME: the user downloads the wheel
-# themselves (https://www.pyrosetta.org/downloads, requires a free academic
-# account) and installs it with 'pip install <wheel>' INSIDE this plugin's
-# conda environment.
+# PyRosetta: free for academic/non-commercial use (RosettaCommons).
+# Auto-installed at install time via the official 'pyrosetta-installer'
+# PyPI package (anonymous direct download from RosettaCommons' own mirror,
+# no account/login needed -- distinct from the manual browser download at
+# https://www.pyrosetta.org/downloads, which DOES require a free academic
+# account, but that page is only for humans; the installer hits the same
+# mirror directly). An earlier session (this dev machine, 2026-07-27)
+# found the default mirror 404'd and the fallback failed TLS verification
+# -- re-tested for real 2026-08-21 and both the download and
+# 'pyrosetta.init()' now work end-to-end (real wheel, ~1.66GB, version
+# 2026.33 dated 2026-08-13) -- the mirror's content/config has evidently
+# changed since. If this ever regresses again, PYROSETTA_DOWNLOAD_URL
+# below is the manual fallback (requires the free academic account).
 PYROSETTA_DOWNLOAD_URL = 'https://www.pyrosetta.org/downloads'
 
 # 17 PTM types predicted by DeepPTMPred (one .h5 model per type, one runner

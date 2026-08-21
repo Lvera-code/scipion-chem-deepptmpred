@@ -51,10 +51,11 @@ class Plugin(pwchemPlugin):
     repo's own real ``pred/train_PTM/environment.yml`` (Python 3.10,
     TensorFlow 2.15, PyTorch 2.0, fair-esm). The ESM-2 checkpoint (2.6GB +
     its contact-regression companion) is auto-downloaded too, into
-    ``<DEEPPTMPRED_HOME>/checkpoints/``. ONE piece remains manual:
-    PyRosetta (free academic license, wheel not redistributable nor
-    reliably downloadable in this environment). The runner that invokes
-    both libraries (``scripts/deepptmpred_runner.py``) is a maintained,
+    ``<DEEPPTMPRED_HOME>/checkpoints/``. PyRosetta (free for
+    academic/non-commercial use) is now auto-installed too, via the
+    official ``pyrosetta-installer`` PyPI package -- nothing manual
+    remains. The runner that invokes both libraries
+    (``scripts/deepptmpred_runner.py``) is a maintained,
     byte-for-byte vendored copy (never rewritten from memory) of the
     original ``predict.py``, with 3 real scientific patches applied on top
     (see that file's docstring)."""
@@ -151,6 +152,18 @@ class Plugin(pwchemPlugin):
             f"curl -fsSL --retry 3 -o {home}/checkpoints/{ESM_CONTACT_REGRESSION_FILENAME} "
             f"{ESM_CONTACT_REGRESSION_URL}",
             'DEEPPTMPRED_ESM_CHECKPOINT_DOWNLOADED'
+        ).addCommand(
+            # PyRosetta auto-install (see constants.py for the 2026-08-21
+            # re-verification: the official 'pyrosetta-installer' PyPI
+            # package's default mirror, previously found broken, now
+            # works end-to-end for real -- confirmed real 'pyrosetta.init()'
+            # run, not just a reachability check). Free for
+            # academic/non-commercial use, no account/login needed for
+            # this anonymous direct download.
+            f"{cls.getEnvActivationCommand(DEEPPTMPRED_DIC)} && "
+            "pip install pyrosetta-installer && "
+            "python -c \"import pyrosetta_installer; pyrosetta_installer.install_pyrosetta()\"",
+            'DEEPPTMPRED_PYROSETTA_INSTALLED'
         ).addPackage(env, dependencies=['conda', 'git', 'curl'], default=default)
 
     @classmethod
@@ -180,9 +193,10 @@ class Plugin(pwchemPlugin):
 
         if not errors and not cls.checkCallEnv(DEEPPTMPRED_DIC, extraImport='pyrosetta'):
             errors.append(
-                f"PyRosetta is not installed in the DeepPTMPred conda environment -- academic-license "
-                f"wheel, download manually from {PYROSETTA_DOWNLOAD_URL} and 'pip install <wheel>' "
-                "inside the environment."
+                "PyRosetta is not installed in the DeepPTMPred conda environment -- it should have "
+                "been auto-installed at install time. Re-run 'scipion3 installb deepptmpred' or, if "
+                f"that keeps failing, download the wheel manually from {PYROSETTA_DOWNLOAD_URL} "
+                "(free academic account) and 'pip install <wheel>' inside the environment."
             )
 
         if errors:

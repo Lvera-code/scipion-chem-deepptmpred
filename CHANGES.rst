@@ -2,6 +2,20 @@
 CHANGES
 =========
 
+0.5.0
+=====
+- PyRosetta is now auto-installed too (via the official
+  ``pyrosetta-installer`` PyPI package, free for academic/non-commercial
+  use, no account needed for this direct download) -- nothing manual
+  remains for this plugin. The mirror this installer uses was previously
+  found broken (2026-07-27: default 404, fallback TLS failure); re-tested
+  for real 2026-08-21 in an isolated conda env and it now works
+  end-to-end (~1.66GB wheel, real ``pyrosetta.init()`` run, version
+  2026.33 dated 2026-08-13) -- the mirror's content/config evidently
+  changed since. If it ever regresses, the manual fallback
+  (``PYROSETTA_DOWNLOAD_URL``, requires a free academic account) is still
+  documented.
+
 0.4.1
 =====
 - Fixed a real upstream bug found via an actual end-to-end fresh conda

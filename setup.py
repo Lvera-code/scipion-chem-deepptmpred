@@ -19,7 +19,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='scipion-chem-deepptmpred',
-    version='0.4.1',
+    version='0.5.0',
     description='Scipion framework plugin for PTM prediction with DeepPTMPred',
     long_description=long_description,
     url='https://github.com/Lvera-code/scipion-chem-deepptmpred',
