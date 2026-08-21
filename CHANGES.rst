@@ -8,10 +8,9 @@ CHANGES
   ``pyrosetta-installer`` PyPI package, free for academic/non-commercial
   use, no account needed for this direct download) -- nothing manual
   remains for this plugin. The mirror this installer uses was previously
-  found broken (2026-07-27: default 404, fallback TLS failure); re-tested
-  for real 2026-08-21 in an isolated conda env and it now works
-  end-to-end (~1.66GB wheel, real ``pyrosetta.init()`` run, version
-  2026.33 dated 2026-08-13) -- the mirror's content/config evidently
+  found broken (default 404, fallback TLS failure); re-tested for real in
+  an isolated conda env and it now works end-to-end (~1.66GB wheel, real
+  ``pyrosetta.init()`` run) -- the mirror's content/config evidently
   changed since. If it ever regresses, the manual fallback
   (``PYROSETTA_DOWNLOAD_URL``, requires a free academic account) is still
   documented.
@@ -19,14 +18,11 @@ CHANGES
 0.4.1
 =====
 - Fixed a real upstream bug found via an actual end-to-end fresh conda
-  env update on a Colab GPU session (Tesla T4, 2026-08-21): the real
+  env update on a real GPU machine: the real
   ``pred/train_PTM/environment.yml``'s own ``pip:`` block has
   ``tensorflow=2.15`` (single ``=``, invalid pip requirement syntax --
-  real error: "= is not a valid operator. Did you mean == ?"). An
-  earlier, undocumented edit had already patched a LOCAL clone of this
-  repo elsewhere on this machine to ``==``, which is why this was missed
-  until a genuinely fresh clone from GitHub was tested. Fixed with a
-  ``sed`` patch on the filtered environment.yml before ``conda env
+  real error: "= is not a valid operator. Did you mean == ?"). Fixed with
+  a ``sed`` patch on the filtered environment.yml before ``conda env
   update``. Verified after the fix: the full GPU branch (real
   ``cudatoolkit``/``cudnn``/torch install from the real file) completes
   successfully, with ``torch.cuda.is_available()`` and
@@ -40,10 +36,9 @@ CHANGES
   ``torch.cuda.is_available()``, no native CLI flag -- this is the real
   lever on that decision). Install now keeps the real ``cudatoolkit``/
   ``cudnn`` conda entries and installs the default (CUDA-capable) torch
-  wheel when a GPU is detected; without one (this dev machine's case, the
-  only branch verified here) stays exactly the already-verified
-  CPU-only-wheel behavior. The ``CUDA_VISIBLE_DEVICES`` lever itself was
-  verified for real against torch on a Colab GPU session (Tesla T4):
+  wheel when a GPU is detected; without one, stays exactly the
+  already-verified CPU-only-wheel behavior. The ``CUDA_VISIBLE_DEVICES`` lever itself was
+  verified for real against torch on a real GPU machine:
   ``torch.cuda.is_available()`` flips False/True exactly as expected.
 
 0.3.0

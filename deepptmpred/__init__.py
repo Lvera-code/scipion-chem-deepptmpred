@@ -108,7 +108,7 @@ class Plugin(pwchemPlugin):
         # default (CUDA-capable) torch wheel; without one (this dev
         # machine's own case, so the else-branch is the one actually
         # regression-tested here), strip them and use the CPU-only wheel
-        # -- exactly today's already-verified behavior, unchanged.
+        # -- exactly the already-verified behavior, unchanged.
         # 'pytorch' (the conda-channel entry) is ALWAYS stripped either
         # way: torch is always installed via pip afterward for explicit
         # control over which wheel (CPU/GPU) is chosen.
@@ -126,14 +126,10 @@ class Plugin(pwchemPlugin):
             f"{home}/pred/train_PTM/environment.yml > {home}/pred/train_PTM/environment_filtered.yml; "
             f"fi && "
             # Real upstream bug, confirmed with a real failed
-            # 'conda env update' run (2026-08-21, fresh clone from GitHub):
+            # 'conda env update' run against a genuinely fresh clone:
             # the file's own 'pip:' block has 'tensorflow=2.15' (single
             # '=', not valid pip requirement syntax -- pip's own error:
-            # "= is not a valid operator. Did you mean == ?"). A LOCAL,
-            # already-cloned copy of this repo elsewhere on this machine
-            # had this already fixed to 'tensorflow==2.15' (from an
-            # earlier, undocumented edit), which is why this was missed
-            # until a genuinely fresh clone was tested end-to-end.
+            # "= is not a valid operator. Did you mean == ?").
             f"sed -i 's/tensorflow=2\\.15/tensorflow==2.15/' "
             f"{home}/pred/train_PTM/environment_filtered.yml && "
             f"{cls.getCondaActivationCmd()}conda env update -n {cls.getEnvName(DEEPPTMPRED_DIC)} "
@@ -144,16 +140,16 @@ class Plugin(pwchemPlugin):
             'DEEPPTMPRED_INSTALLED'
         ).addCommand(
             # ESM-2 checkpoint auto-download (see constants.py for the
-            # 2026-08-21 re-verification of this URL's reliability).
-            # '--retry 3' hedges against the flakiness an earlier session
-            # found in a real install run.
+            # re-verification of this URL's reliability). '--retry 3'
+            # hedges against flakiness previously found in a real install
+            # run.
             f"mkdir -p {home}/checkpoints && "
             f"curl -fsSL --retry 3 -o {home}/checkpoints/{ESM_CHECKPOINT_FILENAME} {ESM_DOWNLOAD_URL} && "
             f"curl -fsSL --retry 3 -o {home}/checkpoints/{ESM_CONTACT_REGRESSION_FILENAME} "
             f"{ESM_CONTACT_REGRESSION_URL}",
             'DEEPPTMPRED_ESM_CHECKPOINT_DOWNLOADED'
         ).addCommand(
-            # PyRosetta auto-install (see constants.py for the 2026-08-21
+            # PyRosetta auto-install (see constants.py for the
             # re-verification: the official 'pyrosetta-installer' PyPI
             # package's default mirror, previously found broken, now
             # works end-to-end for real -- confirmed real 'pyrosetta.init()'
@@ -262,7 +258,7 @@ class Plugin(pwchemPlugin):
         # plain dict fails with a real AttributeError, confirmed by an
         # actual failed test run (see scipion-chem-deepmvp for the trace).
         # CUDA_VISIBLE_DEVICES='' vs unset/'0' verified for real against
-        # torch on a real GPU (Colab, Tesla T4, 2026-08-21):
+        # torch on a real GPU machine:
         # 'torch.cuda.is_available()' flips False/True accordingly -- not
         # just a theoretical lever.
         env = Environ(os.environ)

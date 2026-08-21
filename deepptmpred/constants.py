@@ -58,12 +58,12 @@ LICENSE_NOTE = 'CC BY-NC 4.0 -- non-commercial use only.'
 # 'esm2_t33_650M_UR50D-contact-regression.pt' (required companion file, see
 # the docstring of 'scripts/deepptmpred_runner.py::_extract_esm_features')
 # in the SAME directory -- also auto-downloaded.
-# Re-verified 2026-08-21 (curl -sIL on both URLs: real 200, correct
-# content-length, served via CloudFront/S3) after an earlier session found
-# this download unreliable inside a real 'scipion3 installb' run and kept it
-# manual -- '--retry 3' added to the install command below as a hedge
-# against that previously-observed flakiness recurring, rather than
-# assuming today's success makes it permanently reliable.
+# Re-verified via 'curl -sIL' on both URLs (real 200, correct
+# content-length, served via CloudFront/S3) after this download was once
+# found unreliable inside a real 'scipion3 installb' run -- '--retry 3'
+# added to the install command below as a hedge against that
+# previously-observed flakiness recurring, rather than assuming success
+# makes it permanently reliable.
 ESM_CHECKPOINT_FILENAME = 'esm2_t33_650M_UR50D.pt'
 ESM_CONTACT_REGRESSION_FILENAME = 'esm2_t33_650M_UR50D-contact-regression.pt'
 ESM_DOWNLOAD_URL = (
@@ -80,13 +80,12 @@ ESM_CONTACT_REGRESSION_URL = (
 # no account/login needed -- distinct from the manual browser download at
 # https://www.pyrosetta.org/downloads, which DOES require a free academic
 # account, but that page is only for humans; the installer hits the same
-# mirror directly). An earlier session (this dev machine, 2026-07-27)
-# found the default mirror 404'd and the fallback failed TLS verification
-# -- re-tested for real 2026-08-21 and both the download and
-# 'pyrosetta.init()' now work end-to-end (real wheel, ~1.66GB, version
-# 2026.33 dated 2026-08-13) -- the mirror's content/config has evidently
-# changed since. If this ever regresses again, PYROSETTA_DOWNLOAD_URL
-# below is the manual fallback (requires the free academic account).
+# mirror directly). This download was once found broken (default mirror
+# 404, fallback failing TLS verification) -- re-tested for real since and
+# both the download and 'pyrosetta.init()' now work end-to-end (real
+# wheel, ~1.66GB) -- the mirror's content/config has evidently changed.
+# If this ever regresses again, PYROSETTA_DOWNLOAD_URL below is the
+# manual fallback (requires the free academic account).
 PYROSETTA_DOWNLOAD_URL = 'https://www.pyrosetta.org/downloads'
 
 # 17 PTM types predicted by DeepPTMPred (one .h5 model per type, one runner
