@@ -12,7 +12,9 @@ CHANGES
   ``cudnn`` conda entries and installs the default (CUDA-capable) torch
   wheel when a GPU is detected; without one (this dev machine's case, the
   only branch verified here) stays exactly the already-verified
-  CPU-only-wheel behavior.
+  CPU-only-wheel behavior. The ``CUDA_VISIBLE_DEVICES`` lever itself was
+  verified for real against torch on a Colab GPU session (Tesla T4):
+  ``torch.cuda.is_available()`` flips False/True exactly as expected.
 
 0.3.0
 =====
